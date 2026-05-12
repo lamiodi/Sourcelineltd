@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Outlet, Link, useLocation } from 'react-router-dom';
 import { SquaresFour as LayoutDashboard, Briefcase, Users, Ruler, SignOut as LogOut, List as Menu, X, ChatTeardropText as MessageSquare } from '@phosphor-icons/react';
 
@@ -6,6 +6,13 @@ const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      navigate('/admin/login');
+    }
+  }, [navigate]);
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
