@@ -2,6 +2,27 @@ const express = require('express');
 const router = express.Router();
 const verifyToken = require('../middleware/authMiddleware');
 const db = require('../db');
+const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure Multer Storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'sourceline/projects',
+    allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
+  },
+});
+
+const upload = multer({ storage: storage });
 
 // GET all projects (Public)
 router.get('/', async (req, res) => {
@@ -29,8 +50,10 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST new project (Protected)
-router.post('/', verifyToken, async (req, res) => {
-  const { title, category, location, image, description } = req.body;
+router.post('/', verifyToken, upload.single('imageFile'), async (req, res) => {
+  const { title, category, location, description } = req.body;
+  // If a file was uploaded, use its path (Cloudinary URL). Otherwise, check if an existing image URL was passed.
+  const image = req.file ? req.file.path : req.body.image;
 
   try {
     const result = await db.query(
@@ -44,8 +67,9 @@ router.post('/', verifyToken, async (req, res) => {
 });
 
 // PUT update project (Protected)
-router.put('/:id', verifyToken, async (req, res) => {
-  const { title, category, location, image, description } = req.body;
+router.put('/:id', verifyToken, upload.single('imageFile'), async (req, res) => {
+  const { title, category, location, description } = req.body;
+  const image = req.file ? req.file.path : req.body.image;
 
   try {
     const result = await db.query(

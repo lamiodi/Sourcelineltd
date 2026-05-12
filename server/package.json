@@ -15,6 +15,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.93.3",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",
@@ -23,9 +24,12 @@
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "multer-storage-cloudinary": "^4.0.0",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.13",
-    "pg": "^8.18.0"
+    "pg": "^8.18.0",
+    "resend": "^6.12.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

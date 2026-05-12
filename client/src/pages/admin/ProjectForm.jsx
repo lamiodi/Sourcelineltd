@@ -15,6 +15,8 @@ const ProjectForm = () => {
     image: '',
     description: ''
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -42,7 +44,15 @@ const ProjectForm = () => {
   }, [id, isEditing]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === 'imageFile') {
+      const file = e.target.files[0];
+      setImageFile(file);
+      if (file) {
+        setImagePreview(URL.createObjectURL(file));
+      }
+    } else {
+      setFormData({ ...formData, [e.target.name]: e.target.value });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -58,13 +68,23 @@ const ProjectForm = () => {
       
       const method = isEditing ? 'PUT' : 'POST';
 
+      const submitData = new FormData();
+      submitData.append('title', formData.title);
+      submitData.append('category', formData.category);
+      submitData.append('location', formData.location);
+      submitData.append('description', formData.description);
+      if (imageFile) {
+        submitData.append('imageFile', imageFile);
+      } else if (formData.image) {
+        submitData.append('image', formData.image);
+      }
+
       const response = await fetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: submitData
       });
 
       if (!response.ok) {
@@ -148,19 +168,22 @@ const ProjectForm = () => {
             </div>
 
             <div>
-              <label htmlFor="image" className="block text-sm font-medium text-gray-700">
-                Image URL
+              <label htmlFor="imageFile" className="block text-sm font-medium text-gray-700">
+                Project Image
               </label>
               <input
-                type="text"
-                name="image"
-                id="image"
-                value={formData.image}
+                type="file"
+                name="imageFile"
+                id="imageFile"
+                accept="image/*"
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
-                placeholder="https://example.com/image.jpg"
+                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-primary/90"
               />
-              <p className="mt-1 text-xs text-gray-500">Provide a direct link to an image.</p>
+              {imagePreview && (
+                <div className="mt-4">
+                  <img src={imagePreview} alt="Preview" className="h-48 w-auto rounded-lg object-cover" />
+                </div>
+              )}
             </div>
 
             <div>

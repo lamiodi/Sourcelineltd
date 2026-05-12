@@ -1,22 +1,12 @@
 const cron = require('node-cron');
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const { Pool } = require('pg');
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
 
-// Configure the email transporter
-// You should configure these in your .env file
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: process.env.SMTP_PORT || 587,
-  secure: process.env.SMTP_SECURE === 'true',
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendDailyReportEmail = async () => {
   try {
@@ -99,21 +89,26 @@ const sendDailyReportEmail = async () => {
     `;
 
     const bossEmail = process.env.BOSS_EMAIL; // Boss's email Address from .env
+    const senderEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'; // Use your verified domain email
 
     if (!bossEmail) {
       console.warn('[CRON] BOSS_EMAIL is not set in environment variables. Cannot send email.');
       return;
     }
 
-    const mailOptions = {
-      from: `"Sourceline Admin" <${process.env.SMTP_USER}>`,
-      to: bossEmail,
+    const { data, error } = await resend.emails.send({
+      from: `Sourceline Admin <${senderEmail}>`,
+      to: [bossEmail],
       subject: `Daily Worker Report - ${today}`,
       html: emailContent,
-    };
+    });
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[CRON] Daily report email sent successfully: ${info.messageId}`);
+    if (error) {
+      console.error('[CRON] Error from Resend API:', error);
+      return;
+    }
+
+    console.log(`[CRON] Daily report email sent successfully: ${data.id}`);
 
   } catch (error) {
     console.error('[CRON] Error sending daily report email:', error);
