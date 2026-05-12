@@ -39,7 +39,12 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 // CORS Configuration
-const allowedOrigins = ['http://localhost:5173', 'http://localhost:3000'];
+const allowedOrigins = [
+  'http://localhost:5173', 
+  'http://localhost:3000', 
+  'https://www.sourcelineltd.com', 
+  'https://sourcelineltd.com'
+];
 app.use(cors({
   origin: function (origin, callback) {
     // allow requests with no origin (like mobile apps or curl requests)
