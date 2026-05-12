@@ -16,7 +16,7 @@ import BlogDetail from './pages/BlogDetail';
 import Privacy from './pages/Privacy';
 import NotFound from './pages/NotFound';
 import AdminLayout from './pages/admin/AdminLayout';
-// import Login from './pages/admin/Login';
+import Login from './pages/admin/Login';
 import ProjectList from './pages/admin/ProjectList';
 import ProjectForm from './pages/admin/ProjectForm';
 import QuotationBuilder from './pages/admin/QuotationBuilder';
@@ -50,7 +50,7 @@ function App() {
         </Route>
 
         {/* Admin Routes (No Main Layout, has its own AdminLayout) */}
-        {/* <Route path="/admin/login" element={<Login />} /> */}
+        <Route path="/admin/login" element={<Login />} />
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={
             <div className="space-y-12">
