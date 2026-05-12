@@ -436,21 +436,38 @@ const Contact = () => {
             <h2 className="text-4xl font-display font-bold text-white mt-2">Follow our work on <br /> social media</h2>
           </div>
 
-          <div className="w-full max-w-sm">
-            {[
-              { icon: Instagram, name: "Instagram", desc: "See our latest project photos and behind-the-scenes.", link: "https://www.instagram.com/sourcelinelimited?igsh=MWlrOTJwMDlkZmJuNg==" },
-            ].map((social, idx) => (
-              <a key={idx} href={social.link} target="_blank" rel="noopener noreferrer" className="reveal group bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-primary/30 transition-all duration-500 block text-left">
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary transition-all duration-300">
-                  <social.icon className="h-6 w-6 text-primary group-hover:text-white transition-colors" />
-                </div>
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="font-bold text-lg text-white">{social.name}</h3>
-                  <ArrowRight className="h-4 w-4 text-white/30 group-hover:text-primary transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all" />
-                </div>
-                <p className="text-sm text-white/40 leading-relaxed">{social.desc}</p>
-              </a>
-            ))}
+          <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <div className="w-full max-w-sm mx-auto">
+              {[
+                { icon: Instagram, name: "Instagram", desc: "See our latest project photos and behind-the-scenes.", link: "https://www.instagram.com/sourcelinelimited?igsh=MWlrOTJwMDlkZmJuNg==" },
+              ].map((social, idx) => (
+                <a key={idx} href={social.link} target="_blank" rel="noopener noreferrer" className="reveal group bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/10 hover:border-primary/30 transition-all duration-500 block text-left">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mb-4 group-hover:bg-primary transition-all duration-300">
+                    <social.icon className="h-6 w-6 text-primary group-hover:text-white transition-colors" />
+                  </div>
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-bold text-lg text-white">{social.name}</h3>
+                    <ArrowRight className="h-4 w-4 text-white/30 group-hover:text-primary transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <p className="text-sm text-white/40 leading-relaxed">{social.desc}</p>
+                </a>
+              ))}
+            </div>
+
+            <div className="w-full flex justify-center reveal">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-lg w-full max-w-[400px]">
+                <iframe 
+                  src="https://www.instagram.com/p/DOa5iWYAiDZ/embed" 
+                  width="100%" 
+                  height="480" 
+                  frameBorder="0" 
+                  scrolling="no" 
+                  allowTransparency="true"
+                  className="w-full border-0"
+                  title="Instagram Post"
+                ></iframe>
+              </div>
+            </div>
           </div>
         </div>
       </section>
