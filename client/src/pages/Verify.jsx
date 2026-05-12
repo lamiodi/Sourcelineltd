@@ -83,7 +83,7 @@ const Verify = () => {
                     </p>
                     <p className="text-slate-600 flex justify-between items-center pt-1">
                       <strong className="text-secondary text-sm uppercase tracking-wider font-mono">RC Number</strong>
-                      <span className="font-mono bg-slate-50 px-3 py-1 rounded-md border border-slate-200 text-sm font-bold text-secondary">RC-1478564</span>
+                      <span className="font-mono bg-slate-50 px-3 py-1 rounded-md border border-slate-200 text-sm font-bold text-secondary">RC-1572232</span>
                     </p>
                   </div>
                 </div>
