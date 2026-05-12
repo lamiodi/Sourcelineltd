@@ -1,67 +1,61 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://www.sourceline.com.ng/</loc>
+    <loc>https://www.sourcelineltd.com/</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/about</loc>
+    <loc>https://www.sourcelineltd.com/about</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/services</loc>
+    <loc>https://www.sourcelineltd.com/services</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/portfolio</loc>
+    <loc>https://www.sourcelineltd.com/portfolio</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/contact</loc>
+    <loc>https://www.sourcelineltd.com/contact</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/blog</loc>
+    <loc>https://www.sourcelineltd.com/blog</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/privacy</loc>
+    <loc>https://www.sourcelineltd.com/privacy</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/verify</loc>
-    <lastmod>2026-03-26</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
-  </url>
-  <url>
-    <loc>https://www.sourceline.com.ng/services/land-surveying</loc>
+    <loc>https://www.sourcelineltd.com/services/land-surveying</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/services/engineering-survey</loc>
+    <loc>https://www.sourcelineltd.com/services/engineering-survey</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.sourceline.com.ng/services/digital-mapping</loc>
+    <loc>https://www.sourcelineltd.com/services/digital-mapping</loc>
     <lastmod>2026-03-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>

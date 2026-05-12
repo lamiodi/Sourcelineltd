@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 const SEO = ({ title, description, keywords, image, url }) => {
   const siteTitle = 'Sourceline Limited';
   const siteDescription = 'Precision Land Surveying and Geoinformatics Services in Nigeria. Registered with SURCON.';
-  const siteUrl = 'https://sourceline.com.ng'; // Placeholder
+  const siteUrl = 'https://www.sourcelineltd.com';
   const siteImage = '/images/companylogo.jpeg';
 
   const fullTitle = title ? `${title} | ${siteTitle}` : siteTitle;

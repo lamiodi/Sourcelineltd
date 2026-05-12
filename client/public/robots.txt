@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Disallow: /admin/
+Disallow: /verify/
 
-Sitemap: https://www.sourceline.com.ng/sitemap.xml
+Sitemap: https://www.sourcelineltd.com/sitemap.xml
