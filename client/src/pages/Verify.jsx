@@ -83,7 +83,15 @@ const Verify = () => {
                     </p>
                     <p className="text-slate-600 flex justify-between items-center pt-1">
                       <strong className="text-secondary text-sm uppercase tracking-wider font-mono">RC Number</strong>
-                      <span className="font-mono bg-slate-50 px-3 py-1 rounded-md border border-slate-200 text-sm font-bold text-secondary">RC-1478564</span>
+                      <span className="font-mono bg-slate-50 px-3 py-1 rounded-md border border-slate-200 text-sm font-bold text-secondary">RC-1572232</span>
+                    </p>
+                    <p className="text-slate-600 flex justify-between items-center pt-3 border-t border-slate-100">
+                      <strong className="text-secondary text-sm uppercase tracking-wider font-mono">Date of Reg</strong>
+                      <span className="font-medium font-mono text-sm">Mar 27, 2019</span>
+                    </p>
+                    <p className="text-slate-600 flex justify-between items-center pt-1">
+                      <strong className="text-secondary text-sm uppercase tracking-wider font-mono">Status</strong>
+                      <span className="font-mono bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200 text-sm font-bold text-emerald-700">ACTIVE</span>
                     </p>
                   </div>
                 </div>
