@@ -41,33 +41,34 @@ const QuotationBuilder = () => {
     }
   }, []);
 
-  // Update item totals
-  useEffect(() => {
-    const updatedItems = quotation.items.map(item => ({
-      ...item,
-      total: item.quantity * item.unitPrice
-    }));
+  // Update item totals when quantity or unit price changes
+  const handleItemChange = (e, field, itemId) => {
+    let { value } = e.target;
     
-    // Only update if totals changed to prevent infinite loop
-    const hasChanges = updatedItems.some((item, index) => item.total !== quotation.items[index].total);
-    if (hasChanges) {
-      setQuotation(prev => ({ ...prev, items: updatedItems }));
+    // Parse numbers for quantity and unitPrice
+    if (field === 'quantity' || field === 'unitPrice') {
+      value = parseFloat(value) || 0;
     }
-  }, [quotation.items]);
 
-  const handleInputChange = (e, field, itemId = null) => {
+    setQuotation(prev => {
+      const updatedItems = prev.items.map(item => {
+        if (item.id === itemId) {
+          const updatedItem = { ...item, [field]: value };
+          // Recalculate total immediately when dependent fields change
+          if (field === 'quantity' || field === 'unitPrice') {
+             updatedItem.total = updatedItem.quantity * updatedItem.unitPrice;
+          }
+          return updatedItem;
+        }
+        return item;
+      });
+      return { ...prev, items: updatedItems };
+    });
+  };
+
+  const handleInputChange = (e, field) => {
     const { value } = e.target;
-    
-    if (itemId) {
-      setQuotation(prev => ({
-        ...prev,
-        items: prev.items.map(item => 
-          item.id === itemId ? { ...item, [field]: value } : item
-        )
-      }));
-    } else {
-      setQuotation(prev => ({ ...prev, [field]: value }));
-    }
+    setQuotation(prev => ({ ...prev, [field]: value }));
   };
 
   const addItem = () => {
@@ -451,12 +452,12 @@ const QuotationBuilder = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {quotation.items.map((item, index) => (
+                      {quotation.items.map((item) => (
                       <tr key={item.id} className="border-b border-gray-200 hover:bg-gray-50">
                         <td className="py-2 px-4">
                           <textarea 
                             value={item.description}
-                            onChange={(e) => handleInputChange(e, 'description', item.id)}
+                            onChange={(e) => handleItemChange(e, 'description', item.id)}
                             className="w-full bg-transparent border-0 focus:ring-0 p-0 text-sm resize-none h-10"
                             placeholder="Service description..."
                           />
@@ -464,7 +465,7 @@ const QuotationBuilder = () => {
                         <td className="py-2 px-4 text-center">
                           <select 
                             value={item.unitType || 'Unit'}
-                            onChange={(e) => handleInputChange(e, 'unitType', item.id)}
+                            onChange={(e) => handleItemChange(e, 'unitType', item.id)}
                             className="w-full bg-transparent border-0 focus:ring-0 p-0 text-sm text-center appearance-none cursor-pointer"
                           >
                             <option value="Hectare">Hectare</option>
@@ -483,7 +484,7 @@ const QuotationBuilder = () => {
                             type="number" 
                             min="1"
                             value={item.quantity}
-                            onChange={(e) => handleInputChange(e, 'quantity', item.id)}
+                            onChange={(e) => handleItemChange(e, 'quantity', item.id)}
                             className="w-full bg-transparent border-0 focus:ring-0 p-0 text-sm text-center"
                           />
                         </td>
@@ -494,7 +495,7 @@ const QuotationBuilder = () => {
                               type="number" 
                               min="0"
                               value={item.unitPrice}
-                              onChange={(e) => handleInputChange(e, 'unitPrice', item.id)}
+                              onChange={(e) => handleItemChange(e, 'unitPrice', item.id)}
                               className="w-full bg-transparent border-0 focus:ring-0 p-0 text-sm text-right"
                             />
                           </div>
