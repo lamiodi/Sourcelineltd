@@ -37,7 +37,7 @@ router.post('/seed-admin', async (req, res) => {
 router.post(
   '/login',
   [
-    body('email').isEmail().withMessage('Please include a valid email').normalizeEmail(),
+    body('username').notEmpty().withMessage('Username is required'),
     body('password').notEmpty().withMessage('Password is required'),
   ],
   async (req, res) => {
@@ -47,11 +47,11 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { email, password } = req.body;
+    const { username, password } = req.body;
 
     try {
       // 1. Get user from Postgres
-      const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+      const result = await db.query('SELECT * FROM users WHERE username = $1', [username]);
       const user = result.rows[0];
 
       if (!user) {
@@ -59,7 +59,7 @@ router.post(
       }
 
       // 2. Compare password
-      const isMatch = await bcrypt.compare(password, user.password);
+      const isMatch = await bcrypt.compare(password, user.password_hash);
       if (!isMatch) {
         return res.status(400).json({ message: 'Invalid credentials' });
       }
@@ -67,13 +67,12 @@ router.post(
       // 3. Create JWT
       const payload = {
         id: user.id,
-        email: user.email,
-        role: user.role
+        username: user.username,
       };
 
-      const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '1h' });
+      const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
 
-      res.json({ token, user: { id: user.id, email: user.email, role: user.role } });
+      res.json({ token, user: { id: user.id, username: user.username } });
 
     } catch (err) {
       console.error(err);
