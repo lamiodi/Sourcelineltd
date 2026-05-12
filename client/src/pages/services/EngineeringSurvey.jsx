@@ -30,7 +30,7 @@ const EngineeringSurvey = () => {
     {
       icon: ShieldCheck,
       title: "SURCON Certified",
-      description: "All engineering surveys conducted by licensed surveyors registered with SURCON"
+      description: "All engineering surveys are overseen by our licensed surveyor registered with SURCON"
     },
     {
       icon: Award,

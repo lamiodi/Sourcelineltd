@@ -12,7 +12,7 @@ const steps = [
   {
     icon: Compass,
     title: 'Field Work',
-    description: 'Our surveyors conduct high-precision on-site measurements using RTK GNSS and Total Stations. Timelines depend on project scale, ranging from 1 day for single plots to 2 weeks for large estate layouts.',
+    description: 'Our survey team conducts high-precision on-site measurements using RTK GNSS and Total Stations. Timelines depend on project scale, ranging from 1 day for single plots to 2 weeks for large estate layouts.',
     duration: '1 - 14 Days (Scope Dependent)',
   },
   {

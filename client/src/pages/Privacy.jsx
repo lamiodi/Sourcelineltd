@@ -143,7 +143,7 @@ const Privacy = () => {
               </div>
               <div className="prose text-gray-500 leading-relaxed ml-0 md:ml-16">
                 <p className="mb-4">
-                  The security of your data is paramount to us. We implement appropriate technical, physical, and organizational measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction. We treat your land data with the strict confidentiality expected of licensed surveyors.
+                  The security of your data is paramount to us. We implement appropriate technical, physical, and organizational measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction. We treat your land data with the strict confidentiality expected in the surveying profession.
                 </p>
                 <p>
                   However, please remember that no method of transmission over the Internet, or method of electronic storage is 100% secure. While we strive to use commercially acceptable means to protect your Personal Data, we cannot guarantee its absolute security.

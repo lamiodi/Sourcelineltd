@@ -158,7 +158,7 @@ const ServiceDetail = () => {
 
                   <div className="mt-6 pt-6 border-t border-white/10">
                     <p className="text-white/60 text-sm mb-4">
-                      Speak directly with our expert surveyors about your project requirements.
+                      Speak directly with our survey experts about your project requirements.
                     </p>
                     <div className="flex flex-col gap-1">
                       <span className="text-white/40 text-xs font-bold uppercase tracking-wider">Call Us</span>

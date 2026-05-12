@@ -30,7 +30,7 @@ const LandSurveying = () => {
     {
       icon: ShieldCheck,
       title: "SURCON Certified",
-      description: "All surveys conducted by licensed surveyors registered with the Surveyors Council of Nigeria"
+      description: "All survey plans are lodged, signed, and stamped by our licensed surveyor registered with the Surveyors Council of Nigeria"
     },
     {
       icon: Award,

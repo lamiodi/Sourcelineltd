@@ -83,7 +83,7 @@ const Verify = () => {
                     </p>
                     <p className="text-slate-600 flex justify-between items-center pt-1">
                       <strong className="text-secondary text-sm uppercase tracking-wider font-mono">RC Number</strong>
-                      <span className="font-mono bg-slate-50 px-3 py-1 rounded-md border border-slate-200 text-sm font-bold text-secondary">RC-1572232</span>
+                      <span className="font-mono bg-slate-50 px-3 py-1 rounded-md border border-slate-200 text-sm font-bold text-secondary">RC-1478564</span>
                     </p>
                   </div>
                 </div>
@@ -110,11 +110,11 @@ const Verify = () => {
               <div className="flex-1">
                 <h3 className="text-2xl font-display font-bold text-secondary mb-4">Surveyors Council of Nigeria (SURCON)</h3>
                 <p className="text-slate-600 leading-relaxed mb-6 max-w-prose">
-                  Our principal surveyors are fully registered and licensed to practice in Nigeria. We adhere strictly to the professional code of ethics and regulatory standards set by SURCON.
+                  Our principal surveyor is fully registered and licensed to practice in Nigeria. We adhere strictly to the professional code of ethics and regulatory standards set by SURCON.
                 </p>
                 <div className="flex items-center gap-3 mb-6 p-4 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-200 shadow-sm">
                   <CheckCircle className="h-5 w-5 shrink-0" />
-                  <span className="font-mono font-medium text-sm">All our survey plans are fully lodged, signed, and stamped by registered statutory surveyors.</span>
+                  <span className="font-mono font-medium text-sm">All our survey plans are fully lodged, signed, and stamped by our registered statutory surveyor.</span>
                 </div>
                 <a
                   href="https://surcon.gov.ng/"

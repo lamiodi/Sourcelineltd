@@ -60,8 +60,8 @@ const Faq = () => {
       answer: 'We have over 10 years of experience delivering precision surveying and geoinformatics services across Nigeria.'
     },
     {
-      question: 'How big is your team of surveyors?',
-      answer: 'Our team consists of over 12 dedicated professionals, including Licensed Surveyors, Assistant Surveyors, Pupil Surveyors, GIS Analysts, and support staff.'
+      question: 'How big is your team?',
+      answer: 'Our team consists of over 20 professionals, including a SURCON-registered surveyor, GIS specialists, survey technologists, and field engineers.'
     },
     {
       question: 'Do you have case studies of past successful projects?',

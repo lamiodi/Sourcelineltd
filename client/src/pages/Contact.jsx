@@ -75,8 +75,8 @@ const Contact = () => {
       answer: "We have over 10 years of experience delivering precision surveying and geoinformatics services across Nigeria."
     },
     {
-      question: "How big is your team of surveyors?",
-      answer: "Our team consists of over 20 professionals, including SURCON-registered surveyors, GIS specialists, and field engineers."
+      question: "How big is your team?",
+      answer: "Our team consists of over 20 professionals, including a SURCON-registered surveyor, GIS specialists, survey technologists, and field engineers."
     },
     {
       question: "Do you have case studies of past successful projects?",

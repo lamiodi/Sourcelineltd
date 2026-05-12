@@ -31,7 +31,7 @@ const About = () => {
     <div className="font-sans">
       <SEO
         title="About Us"
-        description="Learn about Sourceline Limited, our mission, vision, and the experienced team of SURCON-registered surveyors dedicated to precision and integrity in Lagos, Nigeria."
+        description="Learn about Sourceline Limited, our mission, vision, and the experienced survey team led by our SURCON-registered Principal Surveyor, dedicated to precision and integrity in Lagos, Nigeria."
       />
 
       {/* ─── PAGE HERO ───────────────────────────────────────── */}

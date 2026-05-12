@@ -152,7 +152,7 @@ const Services = () => {
                 Industry-leading<br /> expertise & tools
               </h2>
               <p className="text-slate-600 text-lg leading-relaxed mb-8 max-w-prose">
-                Our team of SURCON-registered surveyors combines decades of field experience with the latest geospatial technology to deliver results that exceed expectations.
+                Our expert team combines decades of field experience with the latest geospatial technology to deliver results that exceed expectations. All plans are signed by our SURCON-registered Principal Surveyor.
               </p>
               <ul className="space-y-4 max-w-prose">
                 {[
