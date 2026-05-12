@@ -436,7 +436,7 @@ const Contact = () => {
             <h2 className="text-4xl font-display font-bold text-white mt-2">Follow our work on <br /> social media</h2>
           </div>
 
-          <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
             <div className="w-full max-w-sm mx-auto">
               {[
                 { icon: Instagram, name: "Instagram", desc: "See our latest project photos and behind-the-scenes.", link: "https://www.instagram.com/sourcelinelimited?igsh=MWlrOTJwMDlkZmJuNg==" },
@@ -465,6 +465,21 @@ const Contact = () => {
                   allowTransparency="true"
                   className="w-full border-0"
                   title="Instagram Post"
+                ></iframe>
+              </div>
+            </div>
+
+            <div className="w-full flex justify-center reveal">
+              <div className="bg-white rounded-2xl overflow-hidden shadow-lg w-full max-w-[400px]">
+                <iframe 
+                  src="https://www.instagram.com/p/DOa5iWYAiDZ/embed" 
+                  width="100%" 
+                  height="480" 
+                  frameBorder="0" 
+                  scrolling="no" 
+                  allowTransparency="true"
+                  className="w-full border-0"
+                  title="Instagram Post 2"
                 ></iframe>
               </div>
             </div>
