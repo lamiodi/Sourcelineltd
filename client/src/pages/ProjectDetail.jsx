@@ -107,7 +107,7 @@ const ProjectDetail = () => {
                         <MapPin className="h-8 w-8" />
                     </div>
                     <h2 className="text-2xl font-display font-bold text-secondary mb-3">Project not found</h2>
-                    <p className="text-gray-500 mb-8">The project you are looking for doesn&apos;t exist or has been moved.</p>
+                    <p className="text-gray-500 mb-8">{error || "The project you are looking for doesn't exist or has been moved."}</p>
                     <Link to="/portfolio" className="inline-flex items-center gap-2 bg-secondary text-white px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-primary transition-colors group">
                         <ArrowLeft className="h-4 w-4 transform group-hover:-translate-x-1 transition-transform" />
                         Back to Portfolio

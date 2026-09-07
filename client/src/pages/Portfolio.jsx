@@ -13,7 +13,6 @@ const Portfolio = () => {
   const [search, setSearch] = useState("");
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   useScrollReveal();
 
   useEffect(() => {
@@ -26,7 +25,7 @@ const Portfolio = () => {
         } else {
           setProjects(staticProjectsData);
         }
-      } catch (err) {
+      } catch (_err) {
         setProjects(staticProjectsData);
       } finally {
         setLoading(false);

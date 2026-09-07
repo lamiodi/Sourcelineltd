@@ -51,7 +51,7 @@ const Home = () => {
         } else {
           setRecentProjects(projectsData.slice(0, 4)); // fallback to static
         }
-      } catch (err) {
+      } catch (_err) {
         setRecentProjects(projectsData.slice(0, 4)); // fallback to static
       }
     };

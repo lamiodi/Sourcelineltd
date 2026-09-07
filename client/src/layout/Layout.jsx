@@ -67,7 +67,7 @@ const Layout = ({ children }) => {
       {/* Scroll to Top Button */}
       <button
         onClick={scrollToTop}
-        className={`fixed bottom-24 right-6 z-40 w-12 h-12 bg-secondary/90 backdrop-blur-sm text-white rounded-xl shadow-lg flex items-center justify-center transition-all duration-500 hover:bg-secondary hover:shadow-xl hover:-translate-y-1 ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
+        className={`fixed bottom-24 right-6 z-30 w-12 h-12 bg-secondary/90 backdrop-blur-sm text-white rounded-xl shadow-lg flex items-center justify-center transition-all duration-500 hover:bg-secondary hover:shadow-xl hover:-translate-y-1 ${showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
           }`}
         aria-label="Scroll to top"
       >
@@ -75,7 +75,7 @@ const Layout = ({ children }) => {
       </button>
 
       {/* WhatsApp Enhanced Widget */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+      <div className="fixed bottom-6 right-6 z-30 flex flex-col items-end">
         {/* Chat Window */}
         <div 
           className={`mb-4 w-[320px] sm:w-[360px] bg-white rounded-3xl shadow-2xl overflow-hidden transition-all duration-500 ease-spring origin-bottom-right border border-gray-100 ${

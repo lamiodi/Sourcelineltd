@@ -29,17 +29,16 @@ const initialQuotationState = {
 const QuotationBuilder = () => {
   const [quotation, setQuotation] = useState(initialQuotationState);
   const [logoUrl, setLogoUrl] = useState(defaultLogo);
-  const [drafts, setDrafts] = useState([]);
+  const [drafts, setDrafts] = useState(() => {
+    try {
+      const savedDrafts = localStorage.getItem('quotationDrafts');
+      return savedDrafts ? JSON.parse(savedDrafts) : [];
+    } catch {
+      return [];
+    }
+  });
   const [showHistory, setShowHistory] = useState(false);
   const printRef = useRef(null);
-
-  // Load drafts on mount
-  useEffect(() => {
-    const savedDrafts = localStorage.getItem('quotationDrafts');
-    if (savedDrafts) {
-      setDrafts(JSON.parse(savedDrafts));
-    }
-  }, []);
 
   // Update item totals when quantity or unit price changes
   const handleItemChange = (e, field, itemId) => {

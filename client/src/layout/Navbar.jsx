@@ -174,18 +174,18 @@ const Navbar = () => {
 
       {/* Mobile Menu Overlay */}
       <div
-        className={`fixed inset-0 bg-secondary/60 backdrop-blur-sm z-40 lg:hidden transition-all duration-400 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
+        className={`fixed inset-0 bg-secondary/60 backdrop-blur-sm z-[9998] lg:hidden transition-all duration-400 ${isOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
           }`}
         onClick={() => setIsOpen(false)}
       />
 
       {/* Mobile Menu Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-[85%] max-w-xs bg-white z-50 lg:hidden shadow-elevated transform transition-all duration-500 ease-out-expo flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed inset-y-0 right-0 h-[100dvh] w-[85%] max-w-xs bg-white z-[9999] lg:hidden shadow-elevated transform transition-all duration-500 ease-out-expo flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
           }`}
       >
         {/* Header */}
-        <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-gray-100">
+        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <Link to="/" className="flex items-center gap-2.5" onClick={() => setIsOpen(false)}>
             <img src="/images/favicon-new.jpeg" alt="Sourceline Logo" className="h-9 w-9 rounded-xl object-cover" />
             <div className="flex flex-col leading-none">
@@ -203,12 +203,15 @@ const Navbar = () => {
         </div>
 
         {/* Nav Links */}
-        <div className="flex-1 overflow-y-auto min-h-0 px-4 py-5 space-y-1.5 overscroll-contain">
-          {navigation.map((link, idx) => (
+        <div
+          className="relative flex-1 overflow-y-auto min-h-0 px-4 py-3 space-y-1 overscroll-contain touch-pan-y"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {navigation.map((link) => (
             <Link
               key={link.name}
               to={link.path}
-              className={`flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 group cursor-pointer ${
+              className={`relative z-10 flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold tracking-wide transition-colors duration-200 group cursor-pointer ${
                 link.name === 'Request a Quote'
                   ? 'text-accent bg-accent/10 hover:bg-accent/20 drop-shadow-[0_0_2px_rgba(234,179,8,0.3)]'
                   : isActive(link.path)
@@ -217,11 +220,6 @@ const Navbar = () => {
               }`}
               onClick={() => setIsOpen(false)}
               {...(isActive(link.path) ? { 'aria-current': 'page' } : {})}
-              style={{
-                opacity: isOpen ? 1 : 0,
-                transform: isOpen ? 'translateX(0)' : 'translateX(20px)',
-                transition: `all 0.4s ease ${idx * 50 + 100}ms`,
-              }}
             >
               <span>{link.name}</span>
               {isActive(link.path) ? (
@@ -236,18 +234,18 @@ const Navbar = () => {
         </div>
 
         {/* Bottom CTA */}
-        <div className="shrink-0 p-5 border-t border-gray-100 bg-gray-50/80 backdrop-blur-sm z-10">
+        <div className="shrink-0 p-4 border-t border-gray-100 bg-gray-50/90 backdrop-blur-sm z-20">
           <a
             href="tel:+2348034618227"
-            className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-secondary text-white font-bold text-sm uppercase tracking-wider mb-3 hover:bg-secondary-light transition-colors shadow-lg shadow-secondary/20"
+            className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-secondary text-white font-bold text-xs uppercase tracking-wider mb-2 hover:bg-secondary-light transition-colors shadow-md shadow-secondary/20"
           >
-            <Phone className="h-4 w-4" /> Call Us Now
+            <Phone className="h-3.5 w-3.5" /> Call Us Now
           </a>
-          <div className="flex justify-center gap-6">
-            <a href="tel:+2348034618227" className="text-gray-500 hover:text-primary transition-colors text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+          <div className="flex justify-center gap-4">
+            <a href="tel:+2348034618227" className="text-gray-500 hover:text-primary transition-colors text-[11px] font-semibold flex items-center gap-1">
               <Phone className="h-3 w-3" /> +234 803 461 8227
             </a>
-            <a href="mailto:sourcelineltd@gmail.com" className="text-gray-500 hover:text-primary transition-colors text-xs font-bold uppercase tracking-wider flex items-center gap-1">
+            <a href="mailto:sourcelineltd@gmail.com" className="text-gray-500 hover:text-primary transition-colors text-[11px] font-semibold flex items-center gap-1">
               <Mail className="h-3 w-3" /> Email Us
             </a>
           </div>
