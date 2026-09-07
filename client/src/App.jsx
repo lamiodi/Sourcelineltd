@@ -21,6 +21,7 @@ import ProjectList from './pages/admin/ProjectList';
 import ProjectForm from './pages/admin/ProjectForm';
 import QuotationBuilder from './pages/admin/QuotationBuilder';
 import DailyReports from './pages/admin/DailyReports';
+import PointConverter from './pages/PointConverter';
 import Preloader from './components/Preloader';
 import './App.css';
 
@@ -46,6 +47,9 @@ function App() {
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogDetail />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/point-converter" element={<PointConverter />} />
+          <Route path="/converter" element={<PointConverter />} />
+          <Route path="/tools/point-converter" element={<PointConverter />} />
           <Route path="*" element={<NotFound />} />
         </Route>
 
