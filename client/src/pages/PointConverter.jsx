@@ -18,7 +18,8 @@ import {
   ArrowsClockwise,
   Warning,
   WarningCircle,
-  ShieldCheck
+  ShieldCheck,
+  X
 } from '@phosphor-icons/react';
 
 // ============================================================================
@@ -298,6 +299,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [touchStartDist, setTouchStartDist] = useState(null);
 
   // Auto-detect duplicate coordinates within survey tolerance
   const duplicateInfo = useMemo(() => detectDuplicateCoordinates(points), [points]);
@@ -584,6 +586,41 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
 
   const handleMouseUp = () => setIsDragging(false);
 
+  // Mobile Touch Pan & Pinch-to-Zoom Handlers
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setIsDragging(true);
+      setDragStart({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+    } else if (e.touches.length === 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      setTouchStartDist(dist);
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 1 && isDragging) {
+      const touch = e.touches[0];
+      setPan({ x: touch.clientX - dragStart.x, y: touch.clientY - dragStart.y });
+    } else if (e.touches.length === 2 && touchStartDist) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const factor = dist / touchStartDist;
+      if (factor > 0.4 && factor < 2.5) {
+        setZoom((prev) => Math.min(Math.max(prev * factor, 0.3), 15));
+        setTouchStartDist(dist);
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    setTouchStartDist(null);
+  };
+
   // Export high-res PNG image
   const downloadPlotImage = () => {
     const canvas = canvasRef.current;
@@ -736,58 +773,62 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
         </div>
 
         {/* Pan / Zoom and Export Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end pt-1 sm:pt-0">
           <div className="inline-flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
             <button
               type="button"
               onClick={() => setZoom((z) => Math.min(z * 1.25, 15))}
-              className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded"
+              className="p-2 sm:p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded active:bg-slate-600"
               title="Zoom In"
+              aria-label="Zoom in"
             >
               <Plus size={14} weight="bold" />
             </button>
             <button
               type="button"
               onClick={() => setZoom((z) => Math.max(z * 0.8, 0.3))}
-              className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded"
+              className="p-2 sm:p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded active:bg-slate-600"
               title="Zoom Out"
+              aria-label="Zoom out"
             >
               <Minus size={14} weight="bold" />
             </button>
             <button
               type="button"
               onClick={handleResetView}
-              className="px-2 py-1 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-[11px] font-semibold"
+              className="px-2.5 py-1.5 sm:py-1 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-[11px] font-semibold active:bg-slate-600"
               title="Fit to Extents"
             >
               Fit
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={downloadCsvFromPoints}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 shadow-sm"
-            title="Download points as CSV file"
-          >
-            <Download size={14} weight="bold" /> .csv
-          </button>
-          <button
-            type="button"
-            onClick={downloadDxfFromPoints}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs transition shadow-sm"
-            title="Download AutoCAD DXF CAD drawing"
-          >
-            <FileCode size={14} weight="bold" /> .dxf CAD
-          </button>
-          <button
-            type="button"
-            onClick={downloadPlotImage}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition shadow-sm"
-            title="Download high-res PNG image"
-          >
-            <Camera size={14} weight="bold" /> Plot PNG
-          </button>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={downloadCsvFromPoints}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 font-semibold text-xs transition border border-slate-700 shadow-sm"
+              title="Download points as CSV file"
+            >
+              <Download size={13} weight="bold" /> .csv
+            </button>
+            <button
+              type="button"
+              onClick={downloadDxfFromPoints}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-semibold text-xs transition shadow-sm"
+              title="Download AutoCAD DXF CAD drawing"
+            >
+              <FileCode size={13} weight="bold" /> .dxf CAD
+            </button>
+            <button
+              type="button"
+              onClick={downloadPlotImage}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-xs transition shadow-sm"
+              title="Download high-res PNG image"
+            >
+              <Camera size={13} weight="bold" /> Plot PNG
+            </button>
+          </div>
         </div>
       </div>
 
@@ -805,6 +846,11 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
             setIsDragging(false);
             setHoveredPoint(null);
           }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+          style={{ touchAction: 'none' }}
           className="w-full h-auto max-h-[500px] object-contain cursor-grab active:cursor-grabbing block"
         />
 
@@ -831,8 +877,8 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
         )}
 
         {/* Pan/Zoom Hint */}
-        <div className="absolute bottom-3 right-3 text-[10px] text-slate-500 bg-slate-900/80 px-2 py-1 rounded border border-slate-800">
-          Scroll to zoom • Drag to pan
+        <div className="absolute bottom-3 right-3 text-[10px] text-slate-400 bg-slate-900/85 px-2.5 py-1 rounded-md border border-slate-800 backdrop-blur-sm pointer-events-none">
+          Pinch/Scroll to zoom • Drag to pan
         </div>
       </div>
 
@@ -900,10 +946,29 @@ const PointConverter = () => {
   const [datumOutput, setDatumOutput] = useState('');
   const [datumConvertedPoints, setDatumConvertedPoints] = useState([]);
 
-  // --- Feedback States ---
+  // --- Feedback & Error States ---
   const [copiedCsv, setCopiedCsv] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+
+  // Auto-dismiss temporary feedback messages after 6 seconds
+  useEffect(() => {
+    if (!errorMsg && !successMsg) return;
+    const timer = setTimeout(() => {
+      setErrorMsg('');
+      setSuccessMsg('');
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [errorMsg, successMsg]);
+
+  // Tab change handler that resets temporary notices
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    setErrorMsg('');
+    setSuccessMsg('');
+  };
 
   // --- Auto-Detect Duplicate Coordinates State ---
   const csvDuplicates = useMemo(() => detectDuplicateCoordinates(parsedCsvPoints), [parsedCsvPoints]);
@@ -912,11 +977,16 @@ const PointConverter = () => {
   // Helper: File Upload Handler for Drag & Drop or Click
   const handleFileUpload = (file, targetSetter) => {
     if (!file) return;
+    setErrorMsg('');
     setUploadedFileName(file.name);
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target.result;
       targetSetter(text);
+      setSuccessMsg(`Loaded file "${file.name}" (${(file.size / 1024).toFixed(1)} KB) successfully.`);
+    };
+    reader.onerror = () => {
+      setErrorMsg(`Failed to read file "${file.name}". Please ensure it is a valid text/csv survey file.`);
     };
     reader.readAsText(file);
   };
@@ -1020,13 +1090,20 @@ const PointConverter = () => {
 
   // --- Parser logic for AutoCAD to CSV ---
   const handleGenerateCsv = () => {
+    setErrorMsg('');
     if (!autoCadInput.trim()) {
       setCsvOutput('');
       setParsedCsvPoints([]);
+      setErrorMsg('Please paste AutoCAD text or drop a file first. You can also click "Load Sample" to see how it works.');
       return;
     }
 
     const coords = parseAutoCadCoordinates(autoCadInput);
+    if (coords.length === 0) {
+      setErrorMsg('No valid coordinates found in input. Ensure coordinates contain "X=... Y=..." or numbers formatted as Easting and Northing.');
+      return;
+    }
+
     let currentIndex = parseInt(startNum, 10) || 1;
     const points = [];
 
@@ -1044,6 +1121,7 @@ const PointConverter = () => {
 
     setParsedCsvPoints(points);
     setCsvOutput(buildCsvString(points));
+    setSuccessMsg(`Successfully converted ${points.length} point${points.length > 1 ? 's' : ''} to DGPS CSV!`);
   };
 
   // Remove duplicate coordinates from AutoCAD-converted points
@@ -1066,8 +1144,14 @@ const PointConverter = () => {
       }
     });
 
+    const removed = parsedCsvPoints.length - cleaned.length;
     setParsedCsvPoints(cleaned);
     setCsvOutput(buildCsvString(cleaned));
+    if (removed > 0) {
+      setSuccessMsg(`Removed ${removed} duplicate coordinate point${removed > 1 ? 's' : ''}${keepLoopClosure ? ' (preserved boundary closure point)' : ''}.`);
+    } else {
+      setSuccessMsg('No redundant duplicate points found to remove.');
+    }
   };
 
   const downloadCsv = () => {
@@ -1095,9 +1179,11 @@ const PointConverter = () => {
 
   // --- Parser logic for CSV to AutoCAD Script ---
   const handleGenerateScript = () => {
+    setErrorMsg('');
     if (!csvInput.trim()) {
       setScriptOutput('');
       setParsedScriptPoints([]);
+      setErrorMsg('Please paste CSV survey points or drop a file first. You can also click "Load Sample" to see an example.');
       return;
     }
 
@@ -1209,8 +1295,14 @@ const PointConverter = () => {
       }
     });
 
+    if (points.length === 0) {
+      setErrorMsg('Could not parse any valid coordinate rows from your CSV input. Please check column mapping and verify rows have numeric coordinates.');
+      return;
+    }
+
     setParsedScriptPoints(points);
     setScriptOutput(buildScriptString(points));
+    setSuccessMsg(`Successfully generated AutoCAD Script (.scr) with ${points.length} point${points.length > 1 ? 's' : ''}!`);
   };
 
   // Helper to build AutoCAD script from points array
@@ -1270,8 +1362,14 @@ const PointConverter = () => {
       }
     });
 
+    const removed = parsedScriptPoints.length - cleaned.length;
     setParsedScriptPoints(cleaned);
     setScriptOutput(buildScriptString(cleaned));
+    if (removed > 0) {
+      setSuccessMsg(`Removed ${removed} duplicate coordinate point${removed > 1 ? 's' : ''}${keepLoopClosure ? ' (preserved boundary closure point)' : ''}.`);
+    } else {
+      setSuccessMsg('No redundant duplicate points found to remove.');
+    }
   };
 
   const downloadScript = () => {
@@ -1287,7 +1385,13 @@ const PointConverter = () => {
 
   // --- Datum Transformation Logic (Minna <-> WGS84) ---
   const handleConvertDatum = () => {
-    if (!datumInput.trim()) return;
+    setErrorMsg('');
+    if (!datumInput.trim()) {
+      setDatumOutput('');
+      setDatumConvertedPoints([]);
+      setErrorMsg('Please enter coordinates to transform. You can also click "Load Sample" to test.');
+      return;
+    }
 
     const lines = datumInput.trim().split(/\r\n|\r|\n/);
     const converted = [];
@@ -1345,8 +1449,14 @@ const PointConverter = () => {
       }
     });
 
+    if (converted.length === 0) {
+      setErrorMsg('Could not transform any coordinates. Please check your coordinate format (PointID, Easting/Lat, Northing/Lon).');
+      return;
+    }
+
     setDatumConvertedPoints(converted);
     setDatumOutput(outText);
+    setSuccessMsg(`Successfully transformed ${converted.length} coordinate point${converted.length > 1 ? 's' : ''}!`);
   };
 
   const copyToClipboard = (text, setCopiedState) => {
@@ -1384,43 +1494,92 @@ const PointConverter = () => {
         </div>
 
         {/* Custom Navigation Tabs */}
-        <div className="flex justify-center mb-8">
-          <div className="bg-white rounded-xl p-1.5 shadow-sm border border-slate-200 inline-flex flex-wrap gap-1">
+        <div className="flex justify-center mb-8 px-2 sm:px-0">
+          <div className="bg-white rounded-2xl p-1.5 shadow-sm border border-slate-200 w-full max-w-2xl grid grid-cols-1 sm:grid-cols-3 gap-1.5">
             <button
-              onClick={() => setActiveTab('toCsv')}
-              className={`px-5 py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 flex items-center gap-2 ${
+              onClick={() => handleTabChange('toCsv')}
+              className={`w-full min-h-[44px] py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
                 activeTab === 'toCsv' 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <FileText weight={activeTab === 'toCsv' ? 'fill' : 'regular'} />
-              AutoCAD to DGPS (CSV)
+              <FileText weight={activeTab === 'toCsv' ? 'fill' : 'regular'} size={18} />
+              <span>AutoCAD to DGPS</span>
             </button>
             <button
-              onClick={() => setActiveTab('toScript')}
-              className={`px-5 py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 flex items-center gap-2 ${
+              onClick={() => handleTabChange('toScript')}
+              className={`w-full min-h-[44px] py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
                 activeTab === 'toScript' 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <FileCode weight={activeTab === 'toScript' ? 'fill' : 'regular'} />
-              CSV to AutoCAD Script (.scr)
+              <FileCode weight={activeTab === 'toScript' ? 'fill' : 'regular'} size={18} />
+              <span>CSV to Script (.scr)</span>
             </button>
             <button
-              onClick={() => setActiveTab('datum')}
-              className={`px-5 py-2.5 rounded-lg font-semibold text-xs sm:text-sm transition-all duration-200 flex items-center gap-2 ${
+              onClick={() => handleTabChange('datum')}
+              className={`w-full min-h-[44px] py-2.5 px-3 rounded-xl font-semibold text-xs sm:text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
                 activeTab === 'datum' 
                   ? 'bg-blue-600 text-white shadow-md' 
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
-              <Globe weight={activeTab === 'datum' ? 'fill' : 'regular'} />
-              Minna ↔ WGS84 Datum
+              <Globe weight={activeTab === 'datum' ? 'fill' : 'regular'} size={18} />
+              <span>Minna ↔ WGS84 Datum</span>
             </button>
           </div>
         </div>
+
+        {/* Responsive Feedback Alerts (Error / Success) */}
+        {(errorMsg || successMsg) && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="max-w-4xl mx-auto mb-6 px-2 sm:px-0"
+          >
+            {errorMsg && (
+              <div className="p-3.5 sm:p-4 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <WarningCircle size={20} weight="fill" className="text-red-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Input Error: </span>
+                    <span className="leading-relaxed">{errorMsg}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setErrorMsg('')}
+                  className="p-1 text-red-500 hover:text-red-700 hover:bg-red-100 rounded transition shrink-0 cursor-pointer"
+                  aria-label="Dismiss error"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            {successMsg && (
+              <div className="p-3.5 sm:p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs sm:text-sm flex items-start justify-between gap-3 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <CheckCircle size={20} weight="fill" className="text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold">Success: </span>
+                    <span className="leading-relaxed">{successMsg}</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSuccessMsg('')}
+                  className="p-1 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-100 rounded transition shrink-0 cursor-pointer"
+                  aria-label="Dismiss message"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* ========================================================================= */}
         {/* TAB 1: AutoCAD to DGPS CSV */}
@@ -1581,7 +1740,7 @@ const PointConverter = () => {
                   <button
                     type="button"
                     onClick={handleGenerateCsv}
-                    className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-sm text-xs sm:text-sm cursor-pointer"
                   >
                     <Gear weight="bold" size={18} /> Convert to DGPS CSV & Plot Closed Shape
                   </button>
@@ -1748,15 +1907,15 @@ const PointConverter = () => {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-3 mt-4">
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3 mt-4">
                     <button
                       type="button"
                       onClick={() => copyToClipboard(csvOutput, setCopiedCsv)}
                       disabled={!csvOutput}
-                      className={`flex-1 min-w-[120px] font-semibold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 border text-xs sm:text-sm ${
+                      className={`w-full sm:flex-1 min-h-[44px] font-semibold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 border text-xs sm:text-sm ${
                         !csvOutput
                           ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700 shadow-sm'
+                          : 'bg-white border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 shadow-sm cursor-pointer'
                       }`}
                     >
                       {copiedCsv ? <CheckCircle className="text-emerald-600" weight="fill" size={18} /> : <Copy weight="bold" size={18} />}
@@ -1766,10 +1925,10 @@ const PointConverter = () => {
                       type="button"
                       onClick={downloadCsv}
                       disabled={!csvOutput}
-                      className={`flex-1 min-w-[140px] font-bold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
+                      className={`w-full sm:flex-1 min-h-[44px] font-bold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
                         !csvOutput
                           ? 'bg-blue-300 text-white cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                          : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-sm cursor-pointer'
                       }`}
                     >
                       <Download weight="bold" size={18} /> Download .csv
@@ -1778,10 +1937,10 @@ const PointConverter = () => {
                       type="button"
                       onClick={downloadDxfAutoCad}
                       disabled={parsedCsvPoints.length === 0}
-                      className={`flex-1 min-w-[140px] font-bold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
+                      className={`w-full sm:flex-1 min-h-[44px] font-bold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
                         parsedCsvPoints.length === 0
                           ? 'bg-emerald-200 text-white cursor-not-allowed'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                          : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-sm cursor-pointer'
                       }`}
                     >
                       <FileCode weight="bold" size={18} /> Download .dxf
@@ -1969,7 +2128,7 @@ const PointConverter = () => {
                   <button
                     type="button"
                     onClick={handleGenerateScript}
-                    className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-sm text-xs sm:text-sm cursor-pointer"
                   >
                     <Gear weight="bold" size={18} /> Generate Script, CAD & Plot Shape
                   </button>
@@ -2143,15 +2302,15 @@ const PointConverter = () => {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-3 mt-4">
+                  <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3 mt-4">
                     <button
                       type="button"
                       onClick={() => copyToClipboard(scriptOutput, setCopiedScript)}
                       disabled={!scriptOutput}
-                      className={`flex-1 min-w-[120px] font-semibold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 border text-xs sm:text-sm ${
+                      className={`w-full sm:flex-1 min-h-[44px] font-semibold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 border text-xs sm:text-sm ${
                         !scriptOutput
                           ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700 shadow-sm'
+                          : 'bg-white border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 shadow-sm cursor-pointer'
                       }`}
                     >
                       {copiedScript ? <CheckCircle className="text-emerald-600" weight="fill" size={18} /> : <Copy weight="bold" size={18} />}
@@ -2161,10 +2320,10 @@ const PointConverter = () => {
                       type="button"
                       onClick={downloadScript}
                       disabled={!scriptOutput}
-                      className={`flex-1 min-w-[140px] font-bold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
+                      className={`w-full sm:flex-1 min-h-[44px] font-bold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
                         !scriptOutput
                           ? 'bg-blue-300 text-white cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                          : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-sm cursor-pointer'
                       }`}
                     >
                       <Download weight="bold" size={18} /> Download .scr
@@ -2183,10 +2342,10 @@ const PointConverter = () => {
                         window.URL.revokeObjectURL(url);
                       }}
                       disabled={parsedScriptPoints.length === 0}
-                      className={`flex-1 min-w-[140px] font-bold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
+                      className={`w-full sm:flex-1 min-h-[44px] font-bold py-2.5 px-3 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
                         parsedScriptPoints.length === 0
                           ? 'bg-emerald-200 text-white cursor-not-allowed'
-                          : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                          : 'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-sm cursor-pointer'
                       }`}
                     >
                       <FileCode weight="bold" size={18} /> Download .dxf
@@ -2228,19 +2387,33 @@ const PointConverter = () => {
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-600 text-white font-bold text-xs">1</span>
                     <h2 className="text-base font-bold text-slate-800">Coordinates to Transform</h2>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (datumMode === 'minnaToWgs') {
-                        setDatumInput(`Pl1, 762636.060, 547651.161, 65.543\nPl2, 762486.991, 547443.525, 62.398`);
-                      } else {
-                        setDatumInput(`Pl1, 6.4524102, 3.3912044, 25.000\nPl2, 6.4518201, 3.3921005, 24.500`);
-                      }
-                    }}
-                    className="text-xs font-semibold px-2.5 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
-                  >
-                    Load Sample
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (datumMode === 'minnaToWgs') {
+                          setDatumInput(`Pl1, 762636.060, 547651.161, 65.543\nPl2, 762486.991, 547443.525, 62.398`);
+                        } else {
+                          setDatumInput(`Pl1, 6.4524102, 3.3912044, 25.000\nPl2, 6.4518201, 3.3921005, 24.500`);
+                        }
+                      }}
+                      className="text-xs font-semibold px-2.5 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200 cursor-pointer"
+                    >
+                      Load Sample
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDatumInput('');
+                        setDatumOutput('');
+                        setDatumConvertedPoints([]);
+                      }}
+                      className="text-xs font-semibold p-1.5 rounded text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      title="Clear input"
+                    >
+                      <Trash size={16} />
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-6 flex-grow flex flex-col space-y-4">
@@ -2286,7 +2459,7 @@ const PointConverter = () => {
                   <button
                     type="button"
                     onClick={handleConvertDatum}
-                    className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-sm"
+                    className="w-full min-h-[48px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold py-3 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 shadow-sm text-xs sm:text-sm cursor-pointer"
                   >
                     <ArrowsClockwise weight="bold" size={18} /> Transform Coordinates
                   </button>
@@ -2315,15 +2488,15 @@ const PointConverter = () => {
                     value={datumOutput}
                   />
 
-                  <div className="flex gap-3 mt-4">
+                  <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mt-4">
                     <button
                       type="button"
                       onClick={() => copyToClipboard(datumOutput, setCopiedCsv)}
                       disabled={!datumOutput}
-                      className={`flex-1 font-semibold py-2.5 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 border text-sm ${
+                      className={`w-full sm:flex-1 min-h-[44px] font-semibold py-2.5 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 border text-xs sm:text-sm ${
                         !datumOutput
                           ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                          : 'bg-white border-slate-300 hover:bg-slate-50 text-slate-700 shadow-sm'
+                          : 'bg-white border-slate-300 hover:bg-slate-50 active:bg-slate-100 text-slate-700 shadow-sm cursor-pointer'
                       }`}
                     >
                       {copiedCsv ? <CheckCircle className="text-emerald-600" weight="fill" size={18} /> : <Copy weight="bold" size={18} />}
@@ -2342,10 +2515,10 @@ const PointConverter = () => {
                         window.URL.revokeObjectURL(url);
                       }}
                       disabled={!datumOutput}
-                      className={`flex-1 font-bold py-2.5 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-sm ${
+                      className={`w-full sm:flex-1 min-h-[44px] font-bold py-2.5 px-4 rounded-xl transition duration-150 flex items-center justify-center gap-2 text-xs sm:text-sm ${
                         !datumOutput
                           ? 'bg-blue-300 text-white cursor-not-allowed'
-                          : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+                          : 'bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white shadow-sm cursor-pointer'
                       }`}
                     >
                       <Download weight="bold" size={18} /> Download CSV
