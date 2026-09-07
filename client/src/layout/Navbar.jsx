@@ -181,11 +181,11 @@ const Navbar = () => {
 
       {/* Mobile Menu Panel */}
       <div
-        className={`fixed top-0 right-0 h-full w-[85%] max-w-xs bg-white z-50 lg:hidden shadow-elevated transform transition-all duration-500 ease-out-expo ${isOpen ? 'translate-x-0' : 'translate-x-full'
+        className={`fixed top-0 right-0 h-full w-[85%] max-w-xs bg-white z-50 lg:hidden shadow-elevated transform transition-all duration-500 ease-out-expo flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
+        <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-gray-100">
           <Link to="/" className="flex items-center gap-2.5" onClick={() => setIsOpen(false)}>
             <img src="/images/favicon-new.jpeg" alt="Sourceline Logo" className="h-9 w-9 rounded-xl object-cover" />
             <div className="flex flex-col leading-none">
@@ -196,18 +196,19 @@ const Navbar = () => {
           <button
             onClick={() => setIsOpen(false)}
             className="p-2 rounded-xl text-gray-400 hover:text-secondary hover:bg-gray-100 transition-all"
+            aria-label="Close menu"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {/* Nav Links */}
-        <div className="flex flex-col px-4 py-6 space-y-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0 px-4 py-5 space-y-1.5 overscroll-contain">
           {navigation.map((link, idx) => (
             <Link
               key={link.name}
               to={link.path}
-              className={`flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 group ${
+              className={`flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-bold tracking-wide transition-all duration-300 group cursor-pointer ${
                 link.name === 'Request a Quote'
                   ? 'text-accent bg-accent/10 hover:bg-accent/20 drop-shadow-[0_0_2px_rgba(234,179,8,0.3)]'
                   : isActive(link.path)
@@ -219,7 +220,7 @@ const Navbar = () => {
               style={{
                 opacity: isOpen ? 1 : 0,
                 transform: isOpen ? 'translateX(0)' : 'translateX(20px)',
-                transition: `all 0.4s ease ${idx * 60 + 150}ms`,
+                transition: `all 0.4s ease ${idx * 50 + 100}ms`,
               }}
             >
               <span>{link.name}</span>
@@ -235,7 +236,7 @@ const Navbar = () => {
         </div>
 
         {/* Bottom CTA */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-100 bg-gray-50/50">
+        <div className="shrink-0 p-5 border-t border-gray-100 bg-gray-50/80 backdrop-blur-sm z-10">
           <a
             href="tel:+2348034618227"
             className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-secondary text-white font-bold text-sm uppercase tracking-wider mb-3 hover:bg-secondary-light transition-colors shadow-lg shadow-secondary/20"

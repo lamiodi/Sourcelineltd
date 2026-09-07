@@ -15,8 +15,8 @@ const Footer = () => {
             <Link to="/" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">Home</Link>
             <Link to="/portfolio" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">Works</Link>
             <Link to="/services" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">Services</Link>
+            <Link to="/point-converter" className="text-accent hover:text-primary transition-colors text-sm font-medium flex items-center gap-1.5">Point Converter <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded font-bold uppercase">New</span></Link>
             <Link to="/about" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">About</Link>
-            <Link to="/pricing" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">Pricing</Link>
             <Link to="/contact" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">Contact us</Link>
           </div>
 

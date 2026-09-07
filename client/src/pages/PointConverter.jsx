@@ -15,7 +15,10 @@ import {
   Globe,
   Plus,
   Minus,
-  ArrowsClockwise
+  ArrowsClockwise,
+  Warning,
+  WarningCircle,
+  ShieldCheck
 } from '@phosphor-icons/react';
 
 // ============================================================================
@@ -201,6 +204,85 @@ Pillar3,762486.991,547443.525,62.398,PILLAR
 Pillar4,762517.073,547764.076,63.988,PILLAR`;
 
 // ============================================================================
+// AUTO-DETECT DUPLICATE COORDINATE ENGINE
+// ============================================================================
+const detectDuplicateCoordinates = (points, tolerance = 0.005) => {
+  if (!points || points.length < 2) {
+    return {
+      hasDuplicates: false,
+      duplicateCount: 0,
+      uniqueCount: points ? points.length : 0,
+      groups: [],
+      duplicateIndices: new Set(),
+      loopClosureGroup: null,
+      redundantCount: 0
+    };
+  }
+
+  const groups = [];
+  const duplicateIndices = new Set();
+  let loopClosureGroup = null;
+
+  for (let i = 0; i < points.length; i++) {
+    const p1 = points[i];
+    const e1 = parseFloat(p1.easting);
+    const n1 = parseFloat(p1.northing);
+    if (isNaN(e1) || isNaN(n1)) continue;
+
+    let matchedGroup = null;
+    for (const g of groups) {
+      const refPt = g.items[0].point;
+      const refE = parseFloat(refPt.easting);
+      const refN = parseFloat(refPt.northing);
+      if (Math.hypot(e1 - refE, n1 - refN) <= tolerance) {
+        matchedGroup = g;
+        break;
+      }
+    }
+
+    if (matchedGroup) {
+      matchedGroup.items.push({ index: i, point: p1 });
+    } else {
+      groups.push({
+        coordKey: `E: ${e1.toFixed(3)}, N: ${n1.toFixed(3)}`,
+        items: [{ index: i, point: p1 }]
+      });
+    }
+  }
+
+  const dupGroups = groups.filter((g) => g.items.length > 1);
+
+  dupGroups.forEach((g) => {
+    g.items.forEach((it) => duplicateIndices.add(it.index));
+    const isLoop =
+      g.items.length === 2 &&
+      g.items.some((it) => it.index === 0) &&
+      g.items.some((it) => it.index === points.length - 1);
+
+    g.isLoopClosure = isLoop;
+    g.pointNames = g.items
+      .map((it) => it.point.id || it.point.name || `P${it.index + 1}`)
+      .join(' & ');
+
+    if (isLoop) {
+      loopClosureGroup = g;
+    }
+  });
+
+  const redundantCount = duplicateIndices.size - (loopClosureGroup ? 2 : 0);
+
+  return {
+    hasDuplicates: dupGroups.length > 0,
+    duplicateCount: duplicateIndices.size,
+    uniqueCount: points.length - dupGroups.reduce((acc, g) => acc + (g.items.length - 1), 0),
+    groups: dupGroups,
+    duplicateIndices,
+    loopClosureGroup,
+    redundantCount: Math.max(0, redundantCount)
+  };
+};
+
+// ============================================================================
 // 2D SHAPE CANVAS PREVIEW COMPONENT (WITH PAN, ZOOM & CLOSED PLOT)
 // ============================================================================
 const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
@@ -216,6 +298,22 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // Auto-detect duplicate coordinates within survey tolerance
+  const duplicateInfo = useMemo(() => detectDuplicateCoordinates(points), [points]);
+
+  // Check if currently hovered point has duplicates
+  const hoveredDupGroup = useMemo(() => {
+    if (!hoveredPoint || !duplicateInfo.hasDuplicates) return null;
+    return duplicateInfo.groups.find((g) =>
+      g.items.some(
+        (it) =>
+          (it.point.id && it.point.id === hoveredPoint.id) ||
+          (it.point.name && it.point.name === hoveredPoint.name) ||
+          (it.point.easting === hoveredPoint.easting && it.point.northing === hoveredPoint.northing)
+      )
+    );
+  }, [hoveredPoint, duplicateInfo]);
 
   // Calculate coordinate bounds and statistics
   const stats = useMemo(() => {
@@ -349,37 +447,51 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     // Draw points and labels
     points.forEach((pt, index) => {
       const scr = toScreen(pt.easting, pt.northing);
+      const isDup = duplicateInfo.duplicateIndices.has(index);
+      const isLoopClose = duplicateInfo.loopClosureGroup &&
+        (index === 0 || index === points.length - 1) &&
+        duplicateInfo.loopClosureGroup.items.some((it) => it.index === index);
 
       // Outer glow circle
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
-      ctx.beginPath();
-      ctx.arc(scr.x, scr.y, 8 / zoom, 0, Math.PI * 2);
-      ctx.fill();
+      if (isDup) {
+        ctx.fillStyle = isLoopClose ? 'rgba(59, 130, 246, 0.4)' : 'rgba(245, 158, 11, 0.45)';
+        ctx.beginPath();
+        ctx.arc(scr.x, scr.y, 11 / zoom, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+        ctx.beginPath();
+        ctx.arc(scr.x, scr.y, 8 / zoom, 0, Math.PI * 2);
+        ctx.fill();
+      }
 
       // Core point dot
-      ctx.fillStyle = '#38bdf8';
+      ctx.fillStyle = isDup ? (isLoopClose ? '#60a5fa' : '#f59e0b') : '#38bdf8';
       ctx.beginPath();
-      ctx.arc(scr.x, scr.y, 4.5 / zoom, 0, Math.PI * 2);
+      ctx.arc(scr.x, scr.y, (isDup ? 5.5 : 4.5) / zoom, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5 / zoom;
+      ctx.strokeStyle = isDup ? '#fef08a' : '#ffffff';
+      ctx.lineWidth = (isDup ? 2 : 1.5) / zoom;
       ctx.stroke();
 
       // Point label text
       if (showLabels) {
-        const label = pt.id || pt.name || `P${index + 1}`;
+        let label = pt.id || pt.name || `P${index + 1}`;
+        if (isDup) {
+          label += isLoopClose ? ' [CLOSE]' : ' [DUP]';
+        }
         ctx.font = `bold ${Math.max(10, 11 / zoom)}px system-ui, sans-serif`;
         const textWidth = ctx.measureText(label).width;
 
         // Label pill background
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+        ctx.fillStyle = isDup ? 'rgba(35, 20, 10, 0.95)' : 'rgba(15, 23, 42, 0.9)';
         ctx.fillRect(scr.x + 8 / zoom, scr.y - 14 / zoom, textWidth + 8 / zoom, 16 / zoom);
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.6)';
+        ctx.strokeStyle = isDup ? 'rgba(245, 158, 11, 0.9)' : 'rgba(56, 189, 248, 0.6)';
         ctx.lineWidth = 1 / zoom;
         ctx.strokeRect(scr.x + 8 / zoom, scr.y - 14 / zoom, textWidth + 8 / zoom, 16 / zoom);
 
-        ctx.fillStyle = '#f8fafc';
+        ctx.fillStyle = isDup ? '#fef08a' : '#f8fafc';
         ctx.fillText(label, scr.x + 12 / zoom, scr.y - 2 / zoom);
       }
     });
@@ -421,7 +533,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     ctx.fillText(`E: ${stats.minE.toFixed(2)}m → ${stats.maxE.toFixed(2)}m  (Width: ${stats.spanE.toFixed(2)}m)`, 16, height - 24);
     ctx.fillText(`N: ${stats.minN.toFixed(2)}m → ${stats.maxN.toFixed(2)}m  (Length: ${stats.spanN.toFixed(2)}m)`, 16, height - 10);
 
-  }, [points, stats, connectLines, closeLoop, showLabels, showGrid, zoom, pan]);
+  }, [points, stats, connectLines, closeLoop, showLabels, showGrid, zoom, pan, duplicateInfo]);
 
   // Pan & Zoom Event Handlers
   const handleWheel = (e) => {
@@ -606,6 +718,21 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
             />
             Show Grid
           </label>
+
+          {duplicateInfo.hasDuplicates ? (
+            <span
+              className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold"
+              title={duplicateInfo.groups.map((g) => `${g.pointNames}: ${g.coordKey}`).join(' | ')}
+            >
+              <Warning size={13} weight="fill" className="text-amber-400" />
+              {duplicateInfo.groups.length} Duplicate Location{duplicateInfo.groups.length > 1 ? 's' : ''}
+              {duplicateInfo.loopClosureGroup && ' (Loop Close)'}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+              <CheckCircle size={12} weight="fill" /> Unique Coords
+            </span>
+          )}
         </div>
 
         {/* Pan / Zoom and Export Actions */}
@@ -689,6 +816,17 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
             <div>Northing: <span className="text-white">{hoveredPoint.northing}</span></div>
             <div>Elev (Z): <span className="text-slate-400">{hoveredPoint.elevation || '0.000'}</span></div>
             {hoveredPoint.code && <div>Code: <span className="text-yellow-400">{hoveredPoint.code}</span></div>}
+            {hoveredDupGroup && (
+              <div className="mt-2 pt-2 border-t border-amber-500/30 text-[11px]">
+                <div className="text-amber-300 font-bold flex items-center gap-1">
+                  <Warning size={13} weight="fill" className="text-amber-400 shrink-0" />
+                  {hoveredDupGroup.isLoopClosure ? 'Traverse Loop Closure Point' : 'Duplicate Coordinates Detected'}
+                </div>
+                <div className="text-amber-200/90 mt-0.5">
+                  Matches: <strong className="text-white">{hoveredDupGroup.pointNames}</strong>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -766,6 +904,10 @@ const PointConverter = () => {
   const [copiedCsv, setCopiedCsv] = useState(false);
   const [copiedScript, setCopiedScript] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState('');
+
+  // --- Auto-Detect Duplicate Coordinates State ---
+  const csvDuplicates = useMemo(() => detectDuplicateCoordinates(parsedCsvPoints), [parsedCsvPoints]);
+  const scriptDuplicates = useMemo(() => detectDuplicateCoordinates(parsedScriptPoints), [parsedScriptPoints]);
 
   // Helper: File Upload Handler for Drag & Drop or Click
   const handleFileUpload = (file, targetSetter) => {
@@ -852,6 +994,30 @@ const PointConverter = () => {
     return extracted;
   };
 
+  // Helper to build CSV string from points array
+  const buildCsvString = (pointsList) => {
+    let result = '';
+    if (includeHeader) {
+      if (csvFormat === 'P,E,N,Z,D') result += 'PointID,Easting,Northing,Elevation,Code\n';
+      else if (csvFormat === 'P,N,E,Z,D') result += 'PointID,Northing,Easting,Elevation,Code\n';
+      else if (csvFormat === 'P,D,E,N,Z') result += 'PointID,Code,Easting,Northing,Elevation\n';
+      else if (csvFormat === 'P,E,N,Z') result += 'PointID,Easting,Northing,Elevation\n';
+    }
+
+    pointsList.forEach((pt) => {
+      if (csvFormat === 'P,E,N,Z,D') {
+        result += `${pt.id},${pt.easting},${pt.northing},${pt.elevation},${pt.code}\n`;
+      } else if (csvFormat === 'P,N,E,Z,D') {
+        result += `${pt.id},${pt.northing},${pt.easting},${pt.elevation},${pt.code}\n`;
+      } else if (csvFormat === 'P,D,E,N,Z') {
+        result += `${pt.id},${pt.code},${pt.easting},${pt.northing},${pt.elevation}\n`;
+      } else if (csvFormat === 'P,E,N,Z') {
+        result += `${pt.id},${pt.easting},${pt.northing},${pt.elevation}\n`;
+      }
+    });
+    return result;
+  };
+
   // --- Parser logic for AutoCAD to CSV ---
   const handleGenerateCsv = () => {
     if (!autoCadInput.trim()) {
@@ -876,29 +1042,32 @@ const PointConverter = () => {
       currentIndex++;
     });
 
-    // Build CSV Output text based on selected format
-    let result = '';
-    if (includeHeader) {
-      if (csvFormat === 'P,E,N,Z,D') result += 'PointID,Easting,Northing,Elevation,Code\n';
-      else if (csvFormat === 'P,N,E,Z,D') result += 'PointID,Northing,Easting,Elevation,Code\n';
-      else if (csvFormat === 'P,D,E,N,Z') result += 'PointID,Code,Easting,Northing,Elevation\n';
-      else if (csvFormat === 'P,E,N,Z') result += 'PointID,Easting,Northing,Elevation\n';
-    }
+    setParsedCsvPoints(points);
+    setCsvOutput(buildCsvString(points));
+  };
 
-    points.forEach((pt) => {
-      if (csvFormat === 'P,E,N,Z,D') {
-        result += `${pt.id},${pt.easting},${pt.northing},${pt.elevation},${pt.code}\n`;
-      } else if (csvFormat === 'P,N,E,Z,D') {
-        result += `${pt.id},${pt.northing},${pt.easting},${pt.elevation},${pt.code}\n`;
-      } else if (csvFormat === 'P,D,E,N,Z') {
-        result += `${pt.id},${pt.code},${pt.easting},${pt.northing},${pt.elevation}\n`;
-      } else if (csvFormat === 'P,E,N,Z') {
-        result += `${pt.id},${pt.easting},${pt.northing},${pt.elevation}\n`;
+  // Remove duplicate coordinates from AutoCAD-converted points
+  const handleRemoveCsvDuplicates = (keepLoopClosure = false) => {
+    if (parsedCsvPoints.length === 0) return;
+    const seen = new Set();
+    const cleaned = [];
+    const lastIdx = parsedCsvPoints.length - 1;
+    const firstKey = `${parseFloat(parsedCsvPoints[0].easting).toFixed(3)},${parseFloat(parsedCsvPoints[0].northing).toFixed(3)}`;
+
+    parsedCsvPoints.forEach((pt, idx) => {
+      const key = `${parseFloat(pt.easting).toFixed(3)},${parseFloat(pt.northing).toFixed(3)}`;
+      if (keepLoopClosure && idx === lastIdx && idx > 0 && key === firstKey) {
+        cleaned.push(pt);
+        return;
+      }
+      if (!seen.has(key)) {
+        seen.add(key);
+        cleaned.push(pt);
       }
     });
 
-    setParsedCsvPoints(points);
-    setCsvOutput(result);
+    setParsedCsvPoints(cleaned);
+    setCsvOutput(buildCsvString(cleaned));
   };
 
   const downloadCsv = () => {
@@ -1040,7 +1209,12 @@ const PointConverter = () => {
       }
     });
 
-    // Build AutoCAD Script (.scr)
+    setParsedScriptPoints(points);
+    setScriptOutput(buildScriptString(points));
+  };
+
+  // Helper to build AutoCAD script from points array
+  const buildScriptString = (pointsList) => {
     let script = '';
     if (includePdmode) {
       script += '; --- AutoCAD Point Setup ---\n';
@@ -1049,19 +1223,20 @@ const PointConverter = () => {
     }
 
     script += '; --- Generated Survey Coordinates ---\n';
-    points.forEach((pt) => {
+    pointsList.forEach((pt) => {
       script += `_POINT ${pt.easting},${pt.northing},${pt.elevation}\n`;
-      if (includeTextLabels && pt.name) {
-        const labelText = pt.code ? `${pt.name} (${pt.code})` : pt.name;
+      const ptLabel = pt.name || pt.id;
+      if (includeTextLabels && ptLabel) {
+        const labelText = pt.code ? `${ptLabel} (${pt.code})` : ptLabel;
         script += `_-TEXT ${pt.easting},${pt.northing},${pt.elevation} ${textHeight} 0 ${labelText}\n`;
       }
     });
 
     // Draw closed polyline connecting all boundary points (all 4 lines for 4 points!)
-    if (includePline && points.length >= 3) {
+    if (includePline && pointsList.length >= 3) {
       script += '; --- Closed Boundary Polyline ---\n';
       script += '_PLINE ';
-      points.forEach((pt) => {
+      pointsList.forEach((pt) => {
         script += `${pt.easting},${pt.northing} `;
       });
       script += '_C\n'; // Close the boundary loop!
@@ -1072,8 +1247,31 @@ const PointConverter = () => {
       script += '_ZOOM _E\n';
     }
 
-    setParsedScriptPoints(points);
-    setScriptOutput(script);
+    return script;
+  };
+
+  // Remove duplicate coordinates from CSV-converted script points
+  const handleRemoveScriptDuplicates = (keepLoopClosure = false) => {
+    if (parsedScriptPoints.length === 0) return;
+    const seen = new Set();
+    const cleaned = [];
+    const lastIdx = parsedScriptPoints.length - 1;
+    const firstKey = `${parseFloat(parsedScriptPoints[0].easting).toFixed(3)},${parseFloat(parsedScriptPoints[0].northing).toFixed(3)}`;
+
+    parsedScriptPoints.forEach((pt, idx) => {
+      const key = `${parseFloat(pt.easting).toFixed(3)},${parseFloat(pt.northing).toFixed(3)}`;
+      if (keepLoopClosure && idx === lastIdx && idx > 0 && key === firstKey) {
+        cleaned.push(pt);
+        return;
+      }
+      if (!seen.has(key)) {
+        seen.add(key);
+        cleaned.push(pt);
+      }
+    });
+
+    setParsedScriptPoints(cleaned);
+    setScriptOutput(buildScriptString(cleaned));
   };
 
   const downloadScript = () => {
@@ -1399,9 +1597,16 @@ const PointConverter = () => {
                   </div>
                   {parsedCsvPoints.length > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
-                        {parsedCsvPoints.length} Points
-                      </span>
+                      {csvDuplicates.hasDuplicates ? (
+                        <span className="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-300 rounded-full flex items-center gap-1 shadow-2xs">
+                          <Warning size={13} weight="fill" className="text-amber-600" />
+                          {csvDuplicates.groups.length} Duplicate Location{csvDuplicates.groups.length > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full flex items-center gap-1">
+                          <CheckCircle weight="fill" size={13} /> {parsedCsvPoints.length} Points (Unique)
+                        </span>
+                      )}
                       <div className="inline-flex rounded-md border border-slate-200 p-0.5 bg-white text-xs">
                         <button
                           onClick={() => setViewModeCsv('text')}
@@ -1421,6 +1626,65 @@ const PointConverter = () => {
                 </div>
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
+                  {/* Auto-Detect Duplicate Coordinates Warning Banner */}
+                  {csvDuplicates.hasDuplicates && (
+                    <div className="mb-4 p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs shadow-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <Warning size={18} className="text-amber-600 shrink-0 mt-0.5" weight="fill" />
+                          <div>
+                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                              <span>Auto-Detected {csvDuplicates.groups.length} Duplicate Coordinate Location{csvDuplicates.groups.length > 1 ? 's' : ''} ({csvDuplicates.duplicateCount} points total)</span>
+                              {csvDuplicates.loopClosureGroup ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold border border-blue-200">
+                                  Traverse Loop Closure
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold border border-amber-200">
+                                  Redundant Points
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
+                              {csvDuplicates.loopClosureGroup && csvDuplicates.groups.length === 1
+                                ? `Traverse loop closure detected: Start point (${csvDuplicates.loopClosureGroup.items[0].point.id}) matches end point (${csvDuplicates.loopClosureGroup.items[1].point.id}) to close the polygon.`
+                                : `Survey coordinates match within standard 5mm tolerance. You can clean redundant duplicates or keep closing point.`}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {csvDuplicates.groups.map((grp, gIdx) => (
+                                <span key={gIdx} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-amber-200 rounded-md text-[11px] font-mono text-slate-700 shadow-2xs">
+                                  <span className="font-bold text-amber-800">{grp.pointNames}:</span>
+                                  <span>{grp.coordKey}</span>
+                                  {grp.isLoopClosure && <span className="text-blue-600 font-semibold text-[10px]">(Closure)</span>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap sm:flex-col gap-1.5 shrink-0 sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCsvDuplicates(false)}
+                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1"
+                            title="Remove all duplicate coordinates, keeping only the first occurrence"
+                          >
+                            <Trash size={14} /> Remove Duplicates
+                          </button>
+                          {csvDuplicates.loopClosureGroup && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCsvDuplicates(true)}
+                              className="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1"
+                              title="Remove redundant points but preserve the starting point at the end of the survey"
+                            >
+                              Keep Loop Closure
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {viewModeCsv === 'text' ? (
                     <textarea
                       readOnly
@@ -1441,15 +1705,44 @@ const PointConverter = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 font-mono">
-                          {parsedCsvPoints.map((pt, i) => (
-                            <tr key={i} className="hover:bg-slate-50">
-                              <td className="px-3 py-1.5 font-bold text-blue-700">{pt.id}</td>
-                              <td className="px-3 py-1.5 text-slate-600">{pt.code}</td>
-                              <td className="px-3 py-1.5 text-slate-800">{pt.easting}</td>
-                              <td className="px-3 py-1.5 text-slate-800">{pt.northing}</td>
-                              <td className="px-3 py-1.5 text-slate-600">{pt.elevation}</td>
-                            </tr>
-                          ))}
+                          {parsedCsvPoints.map((pt, i) => {
+                            const isDup = csvDuplicates.duplicateIndices.has(i);
+                            const isClosure = csvDuplicates.loopClosureGroup &&
+                              (i === 0 || i === parsedCsvPoints.length - 1) &&
+                              csvDuplicates.loopClosureGroup.items.some((it) => it.index === i);
+
+                            return (
+                              <tr
+                                key={i}
+                                className={
+                                  isDup
+                                    ? isClosure
+                                      ? 'bg-blue-50/70 font-mono hover:bg-blue-100/60 border-l-2 border-l-blue-500'
+                                      : 'bg-amber-50/70 font-mono hover:bg-amber-100/70 border-l-2 border-l-amber-500'
+                                    : 'hover:bg-slate-50 font-mono'
+                                }
+                              >
+                                <td className="px-3 py-1.5 font-bold text-blue-700 flex items-center gap-1.5">
+                                  {pt.id}
+                                  {isDup && (
+                                    <span
+                                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border ${
+                                        isClosure
+                                          ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                          : 'bg-amber-200 text-amber-900 border-amber-300'
+                                      }`}
+                                    >
+                                      {isClosure ? 'LOOP CLOSE' : 'DUPLICATE'}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-1.5 text-slate-600">{pt.code}</td>
+                                <td className="px-3 py-1.5 text-slate-800 font-semibold">{pt.easting}</td>
+                                <td className="px-3 py-1.5 text-slate-800 font-semibold">{pt.northing}</td>
+                                <td className="px-3 py-1.5 text-slate-600">{pt.elevation}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -1692,9 +1985,16 @@ const PointConverter = () => {
                   </div>
                   {parsedScriptPoints.length > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full">
-                        {parsedScriptPoints.length} Points
-                      </span>
+                      {scriptDuplicates.hasDuplicates ? (
+                        <span className="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-300 rounded-full flex items-center gap-1 shadow-2xs">
+                          <Warning size={13} weight="fill" className="text-amber-600" />
+                          {scriptDuplicates.groups.length} Duplicate Location{scriptDuplicates.groups.length > 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-xs font-semibold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full flex items-center gap-1">
+                          <CheckCircle weight="fill" size={13} /> {parsedScriptPoints.length} Points (Unique)
+                        </span>
+                      )}
                       <div className="inline-flex rounded-md border border-slate-200 p-0.5 bg-white text-xs">
                         <button
                           onClick={() => setViewModeScript('text')}
@@ -1714,6 +2014,65 @@ const PointConverter = () => {
                 </div>
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
+                  {/* Auto-Detect Duplicate Coordinates Warning Banner */}
+                  {scriptDuplicates.hasDuplicates && (
+                    <div className="mb-4 p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs shadow-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <Warning size={18} className="text-amber-600 shrink-0 mt-0.5" weight="fill" />
+                          <div>
+                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                              <span>Auto-Detected {scriptDuplicates.groups.length} Duplicate Coordinate Location{scriptDuplicates.groups.length > 1 ? 's' : ''} ({scriptDuplicates.duplicateCount} points total)</span>
+                              {scriptDuplicates.loopClosureGroup ? (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold border border-blue-200">
+                                  Traverse Loop Closure
+                                </span>
+                              ) : (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold border border-amber-200">
+                                  Redundant Points
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
+                              {scriptDuplicates.loopClosureGroup && scriptDuplicates.groups.length === 1
+                                ? `Traverse loop closure detected: Start point (${scriptDuplicates.loopClosureGroup.items[0].point.name || scriptDuplicates.loopClosureGroup.items[0].point.id}) matches end point (${scriptDuplicates.loopClosureGroup.items[1].point.name || scriptDuplicates.loopClosureGroup.items[1].point.id}) to close the polygon.`
+                                : `Survey coordinates match within standard 5mm tolerance. You can clean redundant duplicates or keep closing point.`}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {scriptDuplicates.groups.map((grp, gIdx) => (
+                                <span key={gIdx} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-amber-200 rounded-md text-[11px] font-mono text-slate-700 shadow-2xs">
+                                  <span className="font-bold text-amber-800">{grp.pointNames}:</span>
+                                  <span>{grp.coordKey}</span>
+                                  {grp.isLoopClosure && <span className="text-blue-600 font-semibold text-[10px]">(Closure)</span>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap sm:flex-col gap-1.5 shrink-0 sm:self-center">
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveScriptDuplicates(false)}
+                            className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1"
+                            title="Remove all duplicate coordinates, keeping only the first occurrence"
+                          >
+                            <Trash size={14} /> Remove Duplicates
+                          </button>
+                          {scriptDuplicates.loopClosureGroup && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveScriptDuplicates(true)}
+                              className="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-semibold rounded-lg text-xs transition shadow-xs flex items-center justify-center gap-1"
+                              title="Remove redundant points but preserve the starting point at the end of the survey"
+                            >
+                              Keep Loop Closure
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-blue-50/70 border border-blue-200/60 p-3 rounded-xl mb-4 text-xs text-blue-900 flex items-start gap-2">
                     <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
                     <div>
@@ -1741,15 +2100,44 @@ const PointConverter = () => {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 font-mono">
-                          {parsedScriptPoints.map((pt, i) => (
-                            <tr key={i} className="hover:bg-slate-50">
-                              <td className="px-3 py-1.5 font-bold text-blue-700">{pt.name}</td>
-                              <td className="px-3 py-1.5 text-slate-600">{pt.code || '-'}</td>
-                              <td className="px-3 py-1.5 text-slate-800">{pt.easting}</td>
-                              <td className="px-3 py-1.5 text-slate-800">{pt.northing}</td>
-                              <td className="px-3 py-1.5 text-slate-600">{pt.elevation}</td>
-                            </tr>
-                          ))}
+                          {parsedScriptPoints.map((pt, i) => {
+                            const isDup = scriptDuplicates.duplicateIndices.has(i);
+                            const isClosure = scriptDuplicates.loopClosureGroup &&
+                              (i === 0 || i === parsedScriptPoints.length - 1) &&
+                              scriptDuplicates.loopClosureGroup.items.some((it) => it.index === i);
+
+                            return (
+                              <tr
+                                key={i}
+                                className={
+                                  isDup
+                                    ? isClosure
+                                      ? 'bg-blue-50/70 font-mono hover:bg-blue-100/60 border-l-2 border-l-blue-500'
+                                      : 'bg-amber-50/70 font-mono hover:bg-amber-100/70 border-l-2 border-l-amber-500'
+                                    : 'hover:bg-slate-50 font-mono'
+                                }
+                              >
+                                <td className="px-3 py-1.5 font-bold text-blue-700 flex items-center gap-1.5">
+                                  {pt.name}
+                                  {isDup && (
+                                    <span
+                                      className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded border ${
+                                        isClosure
+                                          ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                          : 'bg-amber-200 text-amber-900 border-amber-300'
+                                      }`}
+                                    >
+                                      {isClosure ? 'LOOP CLOSE' : 'DUPLICATE'}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-1.5 text-slate-600">{pt.code || '-'}</td>
+                                <td className="px-3 py-1.5 text-slate-800 font-semibold">{pt.easting}</td>
+                                <td className="px-3 py-1.5 text-slate-800 font-semibold">{pt.northing}</td>
+                                <td className="px-3 py-1.5 text-slate-600">{pt.elevation}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -1970,7 +2358,7 @@ const PointConverter = () => {
         )}
 
         {/* Informational Guidance Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-12">
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
             <h3 className="font-bold text-slate-800 text-xs sm:text-sm mb-1.5 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-600"></span>
@@ -2004,6 +2392,16 @@ const PointConverter = () => {
           <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
             <h3 className="font-bold text-slate-800 text-xs sm:text-sm mb-1.5 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+              Auto-Detect Duplicates
+            </h3>
+            <p className="text-[11px] text-slate-600 leading-relaxed">
+              Scans coordinates within 5mm tolerance, flags loop closure vs redundant shots, and provides one-click deduplication.
+            </p>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-sm">
+            <h3 className="font-bold text-slate-800 text-xs sm:text-sm mb-1.5 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-purple-600"></span>
               Minna ↔ WGS84 Datum
             </h3>
             <p className="text-[11px] text-slate-600 leading-relaxed">
