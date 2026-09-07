@@ -25,7 +25,7 @@ const Portfolio = () => {
         } else {
           setProjects(staticProjectsData);
         }
-      } catch (_err) {
+      } catch {
         setProjects(staticProjectsData);
       } finally {
         setLoading(false);
