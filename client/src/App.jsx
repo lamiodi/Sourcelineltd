@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
 import About from './pages/About';
@@ -48,8 +48,8 @@ function App() {
           <Route path="/blog/:slug" element={<BlogDetail />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/point-converter" element={<PointConverter />} />
-          <Route path="/converter" element={<PointConverter />} />
-          <Route path="/tools/point-converter" element={<PointConverter />} />
+          <Route path="/converter" element={<Navigate to="/point-converter" replace />} />
+          <Route path="/tools/point-converter" element={<Navigate to="/point-converter" replace />} />
           <Route path="*" element={<NotFound />} />
         </Route>
 
