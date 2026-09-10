@@ -8,7 +8,7 @@ import {
   ArrowRight, 
   ArrowLeft,
   X,
-  FileCheck,
+  FileText,
   ShieldCheck,
   Sparkle
 } from '@phosphor-icons/react';
@@ -303,7 +303,7 @@ const SurveyCostEstimator = ({ isOpen, onClose }) => {
                   <span>SURCON Registered Red Copy</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <FileCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span>Surveyor General Record Lodgment</span>
                 </div>
                 <div className="flex items-center gap-2">

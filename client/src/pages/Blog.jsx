@@ -10,7 +10,6 @@ import { blogPosts } from '../data';
 
 const Blog = () => {
   const [posts, setPosts] = useState(blogPosts);
-  const [loadingPosts, setLoadingPosts] = useState(true);
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
@@ -30,8 +29,6 @@ const Blog = () => {
         }
       } catch (err) {
         console.warn('[Blog] Using static articles fallback:', err.message);
-      } finally {
-        setLoadingPosts(false);
       }
     };
     fetchPosts();

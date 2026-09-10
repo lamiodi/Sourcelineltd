@@ -30,7 +30,7 @@ const BlogDetail = () => {
   const { slug } = useParams();
   const staticPost = blogPosts.find(p => p.slug === slug || String(p.id) === slug);
   const [post, setPost] = useState(staticPost);
-  const [relatedPosts, setRelatedPosts] = useState(blogPosts.filter(p => p.id !== staticPost?.id).slice(0, 3));
+  const [relatedPosts] = useState(blogPosts.filter(p => p.id !== staticPost?.id).slice(0, 3));
   const [subEmail, setSubEmail] = useState('');
   const [subStatus, setSubStatus] = useState({ text: '', type: '' });
   const [submitting, setSubmitting] = useState(false);
