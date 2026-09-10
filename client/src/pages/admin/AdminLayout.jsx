@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Outlet, Link, useLocation } from 'react-router-dom';
-import { SquaresFour as LayoutDashboard, Briefcase, Users, Ruler, SignOut as LogOut, List as Menu, X, ChatTeardropText as MessageSquare } from '@phosphor-icons/react';
+import { 
+  SquaresFour as LayoutDashboard, 
+  Briefcase, 
+  Users, 
+  SignOut as LogOut, 
+  List as Menu, 
+  X, 
+  ChatTeardropText,
+  FileText,
+  Article,
+  EnvelopeSimple
+} from '@phosphor-icons/react';
 
 const AdminLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -16,8 +27,11 @@ const AdminLayout = () => {
 
   const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+    { name: 'Inquiries & Leads', href: '/admin/contacts', icon: ChatTeardropText },
     { name: 'Projects', href: '/admin/projects', icon: Briefcase },
-    { name: 'Quotations', href: '/admin/quotations', icon: MessageSquare },
+    { name: 'Quotations', href: '/admin/quotations', icon: FileText },
+    { name: 'Blog Manager', href: '/admin/blog', icon: Article },
+    { name: 'Subscribers', href: '/admin/subscribers', icon: EnvelopeSimple },
     { name: 'Daily Reports', href: '/admin/daily-reports', icon: Users },
   ];
 

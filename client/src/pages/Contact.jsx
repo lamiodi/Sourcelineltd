@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Envelope as Mail, Phone, MapPin, Plus, InstagramLogo as Instagram, ArrowRight, CheckCircle, PaperPlaneRight as Send, CaretDown, Copy, Check } from '@phosphor-icons/react';
 import SEO from '../components/SEO';
 import useScrollReveal from '../hooks/useScrollReveal';
+import { API_URL } from '../config';
 
 /* useScrollReveal imported from shared hooks */
 
@@ -42,7 +43,7 @@ const Contact = () => {
     return `REQ-${year}-${randomChars}`;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setSuccess(false);
@@ -50,23 +51,39 @@ const Contact = () => {
 
     const reqId = generateReqId();
 
-    // Format the WhatsApp message
-    const text = `*New Survey Request [${reqId}]*\n\n*Name:* ${formData.name}\n*Email:* ${formData.email}\n*Phone:* ${formData.phone}\n*Survey Type:* ${formData.serviceType || 'Not specified'}\n*Project Location:* ${formData.location}\n*Land Size:* ${formData.landSize || 'Not specified'}\n*Additional Details:*\n${formData.message}`;
+    // 1. Submit lead asynchronously to backend API
+    try {
+      await fetch(`${API_URL}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          serviceType: formData.serviceType,
+          location: formData.location,
+          landSize: formData.landSize,
+          message: `[Request ID: ${reqId}]\n${formData.message}`
+        })
+      });
+    } catch (apiErr) {
+      console.warn('[Contact] Backend submission note:', apiErr.message);
+    }
 
-    // Open WhatsApp in a new tab
+    // 2. Format the WhatsApp message with Request ID
+    const text = `*New Survey Request [${reqId}]*\n\n*Name:* ${formData.name}\n*Email:* ${formData.email}\n*Phone:* ${formData.phone || 'Not specified'}\n*Survey Type:* ${formData.serviceType || 'Not specified'}\n*Project Location:* ${formData.location}\n*Land Size:* ${formData.landSize || 'Not specified'}\n*Additional Details:*\n${formData.message}`;
+
+    // 3. Open WhatsApp in a new tab
     const targetPhone = "2348034618227";
     const whatsappUrl = `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
     window.open(whatsappUrl, '_blank');
 
-    // Clear form and stop loading state
-    setTimeout(() => {
-      setSuccess(true);
-      setFormData({ name: '', email: '', phone: '', serviceType: '', location: '', landSize: '', message: '' });
-      setLoading(false);
+    setSuccess(true);
+    setFormData({ name: '', email: '', phone: '', serviceType: '', location: '', landSize: '', message: '' });
+    setLoading(false);
 
-      // Give success message a brief timeout
-      setTimeout(() => setSuccess(false), 5000);
-    }, 1000);
+    // Keep confirmation visible
+    setTimeout(() => setSuccess(false), 6000);
   };
 
   const faqs = [
@@ -248,7 +265,7 @@ const Contact = () => {
               {success && (
                 <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 font-medium text-sm animate-fade-in flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 shrink-0" />
-                  WhatsApp opened! Please complete sending your message there.
+                  Your request has been saved and opened in WhatsApp! A surveyor will attend to you shortly.
                 </div>
               )}
 

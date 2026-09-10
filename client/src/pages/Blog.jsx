@@ -1,20 +1,41 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, User, ArrowRight, FileText, MagnifyingGlass as Search, Tag, Clock, X } from '@phosphor-icons/react';
 import SEO from '../components/SEO';
 import useScrollReveal from '../hooks/useScrollReveal';
+import { API_URL } from '../config';
 import { blogPosts } from '../data';
 
 /* useScrollReveal imported from shared hooks */
 
 const Blog = () => {
-  const posts = blogPosts;
+  const [posts, setPosts] = useState(blogPosts);
+  const [loadingPosts, setLoadingPosts] = useState(true);
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   useScrollReveal();
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        const res = await fetch(`${API_URL}/blog`);
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setPosts(data);
+          }
+        }
+      } catch (err) {
+        console.warn('[Blog] Using static articles fallback:', err.message);
+      } finally {
+        setLoadingPosts(false);
+      }
+    };
+    fetchPosts();
+  }, []);
 
   const categories = ['All', ...new Set(posts.map(p => p.category).filter(Boolean))];
 
@@ -34,12 +55,27 @@ const Blog = () => {
     setSubmitting(true);
     setMessage({ type: '', text: '' });
 
-    // Simulate API call since backend is not connected
-    setTimeout(() => {
-      setMessage({ type: 'success', text: 'Subscribed successfully!' });
-      setEmail('');
+    try {
+      const res = await fetch(`${API_URL}/newsletter/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Thank you for subscribing! Check your inbox for confirmation.' });
+        setEmail('');
+      } else if (res.status === 409) {
+        setMessage({ type: 'info', text: 'You are already subscribed to our newsletter.' });
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Subscription failed. Please try again.' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Unable to connect to newsletter service. Please try again later.' });
+    } finally {
       setSubmitting(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -232,7 +268,7 @@ const Blog = () => {
             </button>
           </form>
           {message.text && (
-            <div className={`mt-4 text-sm font-medium ${message.type === 'success' ? 'text-emerald-400' : 'text-red-400'}`}>
+            <div className={`mt-4 text-sm font-medium ${message.type === 'success' ? 'text-emerald-400' : message.type === 'info' ? 'text-blue-300' : 'text-red-400'}`}>
               {message.text}
             </div>
           )}

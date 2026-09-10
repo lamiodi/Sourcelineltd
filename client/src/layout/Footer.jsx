@@ -17,6 +17,8 @@ const Footer = () => {
             <Link to="/services" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">Services</Link>
             <Link to="/point-converter" className="text-accent hover:text-primary transition-colors text-sm font-medium flex items-center gap-1.5">Point Converter <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded font-bold uppercase">New</span></Link>
             <Link to="/about" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">About</Link>
+            <Link to="/verify" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">Verify Legitimacy</Link>
+            <Link to="/blog" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">News & Insights</Link>
             <Link to="/contact" className="text-white/60 hover:text-primary transition-colors text-sm font-medium">Contact us</Link>
           </div>
 
@@ -34,7 +36,13 @@ const Footer = () => {
             
             {/* Social Icons - Boxed style matching template */}
             <div className="flex items-center gap-3">
-              <a href="#" className="w-10 h-10 bg-white/5 hover:bg-primary rounded-xl flex items-center justify-center text-white/80 hover:text-white transition-all duration-300">
+              <a 
+                href="https://www.instagram.com/sourcelinelimited?igsh=MWlrOTJwMDlkZmJuNg==" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                title="Follow Sourceline on Instagram"
+                className="w-10 h-10 bg-white/5 hover:bg-primary rounded-xl flex items-center justify-center text-white/80 hover:text-white transition-all duration-300"
+              >
                 <InstagramLogo className="w-5 h-5" />
               </a>
               <a href="#" className="w-10 h-10 bg-white/5 hover:bg-primary rounded-xl flex items-center justify-center text-white/80 hover:text-white transition-all duration-300">
@@ -51,9 +59,9 @@ const Footer = () => {
 
           {/* Column 3: Address */}
           <div className="flex flex-col md:items-end text-left md:text-right space-y-2">
-            <p className="text-white/60 text-sm font-medium mb-1">Address</p>
-            <p className="text-white text-sm leading-relaxed max-w-[200px]">
-              Lagos, Nigeria
+            <p className="text-white/60 text-sm font-medium mb-1">Sangotedo Office</p>
+            <p className="text-white text-sm leading-relaxed max-w-[240px]">
+              Crown Court Terrace Vintage Estate, Behind Mobil Petrol Station, Sangotedo, Lagos State
             </p>
           </div>
           

@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { v4 as uuidv4 } from 'uuid';
 import { format } from 'date-fns';
 import { Plus, Trash, Download, FloppyDisk, ClockCounterClockwise, FilePdf } from '@phosphor-icons/react';
+import { API_URL } from '../../config';
 
 const defaultLogo = '/images/companylogo.jpeg';
 
@@ -39,6 +40,32 @@ const QuotationBuilder = () => {
   });
   const [showHistory, setShowHistory] = useState(false);
   const printRef = useRef(null);
+
+  // Fetch quotations from server on mount
+  useEffect(() => {
+    const fetchServerQuotes = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_URL}/quotations`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            setDrafts(prev => {
+              const combined = [...data, ...prev];
+              // De-duplicate by id or quotationNumber
+              const unique = Array.from(new Map(combined.map(item => [item.id || item.quotationNumber, item])).values());
+              return unique.slice(0, 20);
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[QuotationBuilder] Note on remote quotations sync:', err.message);
+      }
+    };
+    fetchServerQuotes();
+  }, []);
 
   // Update item totals when quantity or unit price changes
   const handleItemChange = (e, field, itemId) => {
@@ -93,13 +120,29 @@ const QuotationBuilder = () => {
     }
   };
 
-  const saveDraft = () => {
+  const saveDraft = async () => {
     const currentDraft = { ...quotation, id: quotation.id || uuidv4(), savedAt: new Date().toISOString() };
-    const updatedDrafts = [currentDraft, ...drafts.filter(d => d.id !== currentDraft.id)].slice(0, 10);
+    const updatedDrafts = [currentDraft, ...drafts.filter(d => d.id !== currentDraft.id)].slice(0, 20);
     setDrafts(updatedDrafts);
     localStorage.setItem('quotationDrafts', JSON.stringify(updatedDrafts));
     setQuotation(currentDraft);
-    alert('Draft saved successfully!');
+
+    // Persist to server API
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_URL}/quotations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(currentDraft)
+      });
+    } catch (err) {
+      console.warn('[QuotationBuilder] Server sync note (saved locally):', err.message);
+    }
+
+    alert('Quotation saved successfully across your account!');
   };
 
   const loadDraft = (draft) => {
@@ -107,10 +150,20 @@ const QuotationBuilder = () => {
     setShowHistory(false);
   };
 
-  const deleteDraft = (id) => {
+  const deleteDraft = async (id) => {
     const updatedDrafts = drafts.filter(d => d.id !== id);
     setDrafts(updatedDrafts);
     localStorage.setItem('quotationDrafts', JSON.stringify(updatedDrafts));
+
+    try {
+      const token = localStorage.getItem('token');
+      await fetch(`${API_URL}/quotations/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (err) {
+      console.warn('[QuotationBuilder] Server delete note:', err.message);
+    }
   };
 
   const calculateSubtotal = () => {

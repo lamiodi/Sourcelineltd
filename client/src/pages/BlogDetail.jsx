@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Calendar, User, ArrowLeft, FileText, ShareNetwork as Share2, FacebookLogo as Facebook, TwitterLogo as Twitter, LinkedinLogo as Linkedin, Clock, Tag, Eye } from '@phosphor-icons/react';
 import ReactMarkdown from 'react-markdown';
 import SEO from '../components/SEO';
+import { API_URL } from '../config';
 import { blogPosts } from '../data';
 
 /* ── Scroll reveal hook ────────────────── */
@@ -27,12 +28,59 @@ const useScrollReveal = () => {
 
 const BlogDetail = () => {
   const { slug } = useParams();
-  const post = blogPosts.find(p => p.slug === slug || String(p.id) === slug);
-  const relatedPosts = blogPosts.filter(p => p.id !== post?.id).slice(0, 3);
+  const staticPost = blogPosts.find(p => p.slug === slug || String(p.id) === slug);
+  const [post, setPost] = useState(staticPost);
+  const [relatedPosts, setRelatedPosts] = useState(blogPosts.filter(p => p.id !== staticPost?.id).slice(0, 3));
+  const [subEmail, setSubEmail] = useState('');
+  const [subStatus, setSubStatus] = useState({ text: '', type: '' });
+  const [submitting, setSubmitting] = useState(false);
   useScrollReveal();
 
+  useEffect(() => {
+    const fetchArticle = async () => {
+      try {
+        const res = await fetch(`${API_URL}/blog/${slug}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.title) {
+            setPost(data);
+          }
+        }
+      } catch (err) {
+        console.warn('[BlogDetail] Using static fallback:', err.message);
+      }
+    };
+    fetchArticle();
+  }, [slug]);
+
+  const handleSubscribe = async (e) => {
+    e.preventDefault();
+    if (!subEmail) return;
+    setSubmitting(true);
+    setSubStatus({ text: '', type: '' });
+    try {
+      const res = await fetch(`${API_URL}/newsletter/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: subEmail })
+      });
+      if (res.ok) {
+        setSubStatus({ text: 'Subscribed successfully! Welcome to Sourceline.', type: 'success' });
+        setSubEmail('');
+      } else if (res.status === 409) {
+        setSubStatus({ text: 'You are already subscribed.', type: 'info' });
+      } else {
+        setSubStatus({ text: 'Subscription error. Please try again.', type: 'error' });
+      }
+    } catch {
+      setSubStatus({ text: 'Unable to connect to newsletter service.', type: 'error' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   // Calculate reading time
-  const readingTime = post ? Math.ceil(post.content.split(' ').length / 200) : 0;
+  const readingTime = post && post.content ? Math.ceil(post.content.split(' ').length / 200) : 0;
   const viewCount = post
     ? (() => {
       const source = post.slug || String(post.id || '');
@@ -275,20 +323,28 @@ const BlogDetail = () => {
             <div className="max-w-2xl mx-auto">
               <h3 className="text-2xl font-playfair font-bold text-secondary mb-4">Stay Updated</h3>
               <p className="text-gray-600 mb-8">Get the latest insights on surveying and geoinformatics delivered to your inbox.</p>
-              <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+              <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto" onSubmit={handleSubscribe}>
                 <input
                   type="email"
+                  value={subEmail}
+                  onChange={(e) => setSubEmail(e.target.value)}
                   placeholder="Enter your email address"
                   className="flex-1 px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   required
                 />
                 <button
                   type="submit"
-                  className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-colors"
+                  disabled={submitting}
+                  className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-colors disabled:opacity-50"
                 >
-                  Subscribe
+                  {submitting ? 'Subscribing...' : 'Subscribe'}
                 </button>
               </form>
+              {subStatus.text && (
+                <div className={`mt-4 text-sm font-medium ${subStatus.type === 'success' ? 'text-emerald-600' : subStatus.type === 'info' ? 'text-blue-600' : 'text-red-600'}`}>
+                  {subStatus.text}
+                </div>
+              )}
             </div>
           </div>
         </div>
