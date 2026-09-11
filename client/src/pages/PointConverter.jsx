@@ -1045,7 +1045,9 @@ const PointConverter = () => {
           localStorage.removeItem('sourceline_field_transfer_v1');
         }
       }
-    } catch (e) {}
+    } catch {
+      // Ignore local storage parse errors
+    }
     return null;
   });
   const [transferCountdown, setTransferCountdown] = useState(0);
@@ -1082,7 +1084,9 @@ const PointConverter = () => {
         setTransferPoints([]);
         try {
           localStorage.removeItem('sourceline_field_transfer_v1');
-        } catch (e) {}
+        } catch {
+          // Ignore removal error
+        }
         setErrorMsg('Field transfer expired (1-hour limit reached). Coordinates have been automatically purged from the hub.');
       }
     };
@@ -1103,7 +1107,10 @@ const PointConverter = () => {
         setLookupPin(pinParam);
         handleLookupTransferByPin(pinParam);
       }
-    } catch (e) {}
+    } catch {
+      // Ignore URL parse error
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formatCountdown = (totalSeconds) => {
@@ -1144,8 +1151,8 @@ const PointConverter = () => {
       if (res.ok) {
         serverJob = await res.json();
       }
-    } catch (e) {
-      console.warn('Backend field-transfer API unreachable, staging locally with 1-hr timer:', e);
+    } catch (err) {
+      console.warn('Backend field-transfer API unreachable, staging locally with 1-hr timer:', err);
     }
 
     const now = Date.now();
@@ -1170,7 +1177,9 @@ const PointConverter = () => {
     setTransferPoints(pts);
     try {
       localStorage.setItem('sourceline_field_transfer_v1', JSON.stringify(stagedPackage));
-    } catch (e) {}
+    } catch {
+      // Ignore local storage error
+    }
 
     setIsStagingLoading(false);
     setWifiOffAcknowledged(false);
@@ -1201,7 +1210,9 @@ const PointConverter = () => {
           return;
         }
       }
-    } catch (e) {}
+    } catch {
+      // Ignore local storage parse error
+    }
 
     try {
       const res = await fetch(`${API_URL}/field-transfer/${cleanPin}`);
@@ -1214,7 +1225,7 @@ const PointConverter = () => {
         const errData = await res.json().catch(() => ({}));
         setErrorMsg(errData.error || 'Transfer PIN not found or file has already expired (1-hour limit reached).');
       }
-    } catch (e) {
+    } catch {
       setErrorMsg('Failed to connect to field transfer hub. Ensure network/hotspot connectivity.');
     } finally {
       setIsFetchingPin(false);
@@ -1226,14 +1237,18 @@ const PointConverter = () => {
     const codeToDel = activeTransfer.code;
     try {
       await fetch(`${API_URL}/field-transfer/${codeToDel}`, { method: 'DELETE' });
-    } catch (e) {}
+    } catch {
+      // Ignore delete fetch error
+    }
     setActiveTransfer(null);
     setTransferPoints([]);
     setTransferInput('');
     setTransferFileName('');
     try {
       localStorage.removeItem('sourceline_field_transfer_v1');
-    } catch (e) {}
+    } catch {
+      // Ignore local storage error
+    }
     setSuccessMsg('Transfer package permanently deleted from field hub.');
   };
 
