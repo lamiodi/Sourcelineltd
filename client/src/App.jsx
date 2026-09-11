@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useState } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, Link } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
@@ -19,9 +19,7 @@ import NotFound from './pages/NotFound';
 import AdminLayout from './pages/admin/AdminLayout';
 import Login from './pages/admin/Login';
 import Preloader from './components/Preloader';
-import SurveyCostEstimator from './components/SurveyCostEstimator';
 import { 
-  Calculator, 
   ChatTeardropText, 
   Briefcase, 
   FileText, 
@@ -51,8 +49,6 @@ const RouteLoading = () => (
 );
 
 function App() {
-  const [estimatorOpen, setEstimatorOpen] = useState(false);
-
   return (
     <>
       <Preloader />
@@ -62,18 +58,6 @@ function App() {
           <Route element={
             <Layout>
               <Outlet />
-              {/* Floating Quick Lead Magnet: Survey Cost Estimator */}
-              <button
-                onClick={() => setEstimatorOpen(true)}
-                className="fixed bottom-6 left-6 z-40 bg-secondary hover:bg-secondary-light text-white px-4 py-2.5 rounded-full shadow-2xl border border-white/20 flex items-center gap-2.5 text-xs font-bold uppercase tracking-wider hover:scale-105 transition-all duration-300 group"
-                title="Calculate Survey Fees"
-              >
-                <div className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-white transition-colors">
-                  <Calculator className="h-3.5 w-3.5" />
-                </div>
-                <span>Fee Estimator</span>
-              </button>
-              <SurveyCostEstimator isOpen={estimatorOpen} onClose={() => setEstimatorOpen(false)} />
             </Layout>
           }>
             <Route path="/" element={<Home />} />
