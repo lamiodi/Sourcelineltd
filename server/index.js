@@ -32,6 +32,7 @@ const blogRoutes = require('./routes/blog');
 const newsletterRoutes = require('./routes/newsletter');
 const dailyReportRoutes = require('./routes/dailyReports');
 const quotationRoutes = require('./routes/quotations');
+const fieldTransferRoutes = require('./routes/fieldTransfer');
 const { initCronJobs } = require('./cron/dailyReportCron');
 
 // Initialize Cron Jobs
@@ -68,6 +69,7 @@ app.use('/api/blog', blogRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/daily-reports', dailyReportRoutes);
 app.use('/api/quotations', quotationRoutes);
+app.use('/api/field-transfer', fieldTransferRoutes);
 
 app.get('/', (req, res) => {
   res.send('Sourceline Server is running');
