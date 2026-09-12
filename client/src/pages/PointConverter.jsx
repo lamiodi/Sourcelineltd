@@ -578,6 +578,40 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     return list;
   }, [points, duplicateInfo, areaGroups]);
 
+  // Active Point Context (Distance & Bearing to next point in area)
+  const activePointContext = useMemo(() => {
+    if (!activePoint) return null;
+    const code = (activePoint.code || '').trim().toUpperCase();
+    const grp = areaGroups.groups[code] || areaGroups.groupList[0];
+    if (!grp) return null;
+
+    const idx = grp.points.findIndex(
+      (p) => (p.id && p.id === activePoint.id) || (p.easting === activePoint.easting && p.northing === activePoint.northing)
+    );
+
+    let nextInfo = null;
+    if (idx !== -1 && idx < grp.points.length - 1) {
+      const nextPt = grp.points[idx + 1];
+      const dE = parseFloat(nextPt.easting) - parseFloat(activePoint.easting);
+      const dN = parseFloat(nextPt.northing) - parseFloat(activePoint.northing);
+      const dist = Math.hypot(dE, dN);
+      let brg = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
+      nextInfo = {
+        name: nextPt.id || nextPt.name,
+        distance: dist.toFixed(3),
+        bearing: brg.toFixed(1)
+      };
+    }
+
+    return {
+      areaName: grp.code,
+      palette: grp.palette,
+      indexInArea: idx + 1,
+      totalInArea: grp.points.length,
+      next: nextInfo
+    };
+  }, [activePoint, areaGroups]);
+
   // Reset / Fit camera view
   const handleFitView = (targetArea = selectedArea) => {
     setPan({ x: 0, y: 0 });
@@ -1093,6 +1127,8 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    const displayStats = areaStats || stats;
+
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = 1600;
     exportCanvas.height = 1100;
@@ -1183,40 +1219,6 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
       </div>
     );
   }
-
-  // Active Point Context (Distance & Bearing to next point in area)
-  const activePointContext = useMemo(() => {
-    if (!activePoint) return null;
-    const code = (activePoint.code || '').trim().toUpperCase();
-    const grp = areaGroups.groups[code] || areaGroups.groupList[0];
-    if (!grp) return null;
-
-    const idx = grp.points.findIndex(
-      (p) => (p.id && p.id === activePoint.id) || (p.easting === activePoint.easting && p.northing === activePoint.northing)
-    );
-
-    let nextInfo = null;
-    if (idx !== -1 && idx < grp.points.length - 1) {
-      const nextPt = grp.points[idx + 1];
-      const dE = parseFloat(nextPt.easting) - parseFloat(activePoint.easting);
-      const dN = parseFloat(nextPt.northing) - parseFloat(activePoint.northing);
-      const dist = Math.hypot(dE, dN);
-      let brg = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
-      nextInfo = {
-        name: nextPt.id || nextPt.name,
-        distance: dist.toFixed(3),
-        bearing: brg.toFixed(1)
-      };
-    }
-
-    return {
-      areaName: grp.code,
-      palette: grp.palette,
-      indexInArea: idx + 1,
-      totalInArea: grp.points.length,
-      next: nextInfo
-    };
-  }, [activePoint, areaGroups]);
 
   return (
     <div ref={containerRef} className="bg-slate-900 rounded-2xl border border-slate-800 p-3 sm:p-5 shadow-xl flex flex-col space-y-3.5 select-none">
@@ -1381,6 +1383,16 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
                 Close Loop
               </label>
             )}
+
+            <label className="inline-flex items-center gap-1 py-1 px-2 rounded-md bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-medium cursor-pointer transition select-none text-[11px]">
+              <input
+                type="checkbox"
+                checked={showGrid}
+                onChange={(e) => setShowGrid(e.target.checked)}
+                className="rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 w-3 h-3"
+              />
+              Grid
+            </label>
 
             {selectedArea !== 'all' && (
               <label className="inline-flex items-center gap-1 py-1 px-2 rounded-md bg-slate-800/80 border border-slate-700 text-slate-300 text-[11px] cursor-pointer">
