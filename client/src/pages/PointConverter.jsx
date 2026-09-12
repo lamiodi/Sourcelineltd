@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Download,
@@ -368,38 +368,110 @@ const MobileFileUploadCard = ({
 // ============================================================================
 // 2D SHAPE CANVAS PREVIEW COMPONENT (WITH PAN, ZOOM & CLOSED PLOT)
 // ============================================================================
+// ESTATE SETTING-OUT PREVIEW & GEOMETRIC PLOT VIEWER
+// Enhanced with Area Clustering, North 270°0' Rotation, Mobile Pinch-to-Zoom,
+// Point Name Decluttering/Hiding, and Setting-Out Anomaly Detection
+// ============================================================================
+const AREA_PALETTES = [
+  { id: 'cyan', stroke: '#38bdf8', fill: 'rgba(56, 189, 248, 0.18)', dot: '#38bdf8', halo: 'rgba(56, 189, 248, 0.35)', badge: 'bg-sky-500/20 text-sky-300 border-sky-500/40', labelBg: 'rgba(8, 47, 73, 0.92)' },
+  { id: 'amber', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.18)', dot: '#fbbf24', halo: 'rgba(245, 158, 11, 0.35)', badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40', labelBg: 'rgba(69, 26, 3, 0.92)' },
+  { id: 'emerald', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.18)', dot: '#34d399', halo: 'rgba(16, 185, 129, 0.35)', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', labelBg: 'rgba(6, 78, 59, 0.92)' },
+  { id: 'purple', stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.18)', dot: '#c084fc', halo: 'rgba(168, 85, 247, 0.35)', badge: 'bg-purple-500/20 text-purple-300 border-purple-500/40', labelBg: 'rgba(59, 7, 100, 0.92)' },
+  { id: 'rose', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.18)', dot: '#fb7185', halo: 'rgba(244, 63, 94, 0.35)', badge: 'bg-rose-500/20 text-rose-300 border-rose-500/40', labelBg: 'rgba(76, 5, 25, 0.92)' },
+  { id: 'teal', stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.18)', dot: '#2dd4bf', halo: 'rgba(20, 184, 166, 0.35)', badge: 'bg-teal-500/20 text-teal-300 border-teal-500/40', labelBg: 'rgba(4, 47, 46, 0.92)' },
+];
+
 const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
   const canvasRef = useRef(null);
-  const [connectLines, setConnectLines] = useState(true);
-  const [closeLoop, setCloseLoop] = useState(true); // Default to true so 4 points show all 4 lines!
-  const [showLabels, setShowLabels] = useState(true);
-  const [showGrid, setShowGrid] = useState(true);
-  const [hoveredPoint, setHoveredPoint] = useState(null);
+  const containerRef = useRef(null);
 
-  // Pan & Zoom State
+  // --- Display & Layer Settings ---
+  const [connectLines, setConnectLines] = useState(true);
+  const [closeLoop, setCloseLoop] = useState(true);
+  const [showGrid, setShowGrid] = useState(true);
+  // labelMode: 'hidden' (Clean Dots) | 'short' (Number/ID) | 'name' (Full Name) | 'code' (Area/Code)
+  const [labelMode, setLabelMode] = useState('hidden');
+  // northOrientation: 270 (Estate Grid - North 270°0') | 0 (Standard North Up) | 90 | 180
+  const [northRotation, setNorthRotation] = useState(270);
+  const [selectedArea, setSelectedArea] = useState('all');
+  const [isolateArea, setIsolateArea] = useState(false);
+  const [showHealthScan, setShowHealthScan] = useState(false);
+
+  // --- Interaction & Inspection State ---
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [activePoint, setActivePoint] = useState(null);
   const [zoom, setZoom] = useState(1.0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [touchStartDist, setTouchStartDist] = useState(null);
 
-  // Auto-detect duplicate coordinates within survey tolerance
+  // Touch gesture refs
+  const touchStartRef = useRef(null);
+  const pinchRef = useRef(null);
+  const lastTapRef = useRef(0);
+
+  // --- Multi-Area Estate Clustering Engine ---
+  const areaGroups = useMemo(() => {
+    if (!points || points.length === 0) return { groups: {}, groupList: [] };
+
+    const groups = {};
+    points.forEach((pt, index) => {
+      let code = (pt.code || '').trim().toUpperCase();
+      if (!code) {
+        const match = (pt.id || pt.name || '').match(/^([a-zA-Z_]+)/);
+        code = match ? match[1].toUpperCase() : 'DEFAULT';
+      }
+
+      if (!groups[code]) {
+        const paletteIdx = Object.keys(groups).length % AREA_PALETTES.length;
+        groups[code] = {
+          code,
+          points: [],
+          indices: [],
+          palette: AREA_PALETTES[paletteIdx],
+          minE: Infinity,
+          maxE: -Infinity,
+          minN: Infinity,
+          maxN: -Infinity
+        };
+      }
+
+      const e = parseFloat(pt.easting);
+      const n = parseFloat(pt.northing);
+      groups[code].points.push(pt);
+      groups[code].indices.push(index);
+
+      if (!isNaN(e) && !isNaN(n)) {
+        if (e < groups[code].minE) groups[code].minE = e;
+        if (e > groups[code].maxE) groups[code].maxE = e;
+        if (n < groups[code].minN) groups[code].minN = n;
+        if (n > groups[code].maxN) groups[code].maxN = n;
+      }
+    });
+
+    const groupList = Object.values(groups).map((g) => {
+      const spanE = g.maxE - g.minE;
+      const spanN = g.maxN - g.minN;
+      return {
+        ...g,
+        spanE: spanE > 0 ? spanE : 1,
+        spanN: spanN > 0 ? spanN : 1
+      };
+    });
+
+    return { groups, groupList };
+  }, [points]);
+
+  // Auto-detect duplicate coordinates within survey tolerance (5mm)
   const duplicateInfo = useMemo(() => detectDuplicateCoordinates(points), [points]);
 
-  // Check if currently hovered point has duplicates
-  const hoveredDupGroup = useMemo(() => {
-    if (!hoveredPoint || !duplicateInfo.hasDuplicates) return null;
-    return duplicateInfo.groups.find((g) =>
-      g.items.some(
-        (it) =>
-          (it.point.id && it.point.id === hoveredPoint.id) ||
-          (it.point.name && it.point.name === hoveredPoint.name) ||
-          (it.point.easting === hoveredPoint.easting && it.point.northing === hoveredPoint.northing)
-      )
-    );
-  }, [hoveredPoint, duplicateInfo]);
+  // Overall & Active Area Statistics
+  const activePointsList = useMemo(() => {
+    if (!points || points.length === 0) return [];
+    if (selectedArea === 'all') return points;
+    return areaGroups.groups[selectedArea]?.points || points;
+  }, [points, selectedArea, areaGroups]);
 
-  // Calculate coordinate bounds and statistics
   const stats = useMemo(() => {
     if (!points || points.length === 0) return null;
 
@@ -420,13 +492,36 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     const spanE = maxE - minE;
     const spanN = maxN - minN;
 
-    // Shoelace formula for area & perimeter
+    return {
+      minE, maxE, minN, maxN,
+      spanE: spanE > 0 ? spanE : 1,
+      spanN: spanN > 0 ? spanN : 1
+    };
+  }, [points]);
+
+  // Selected Area Specific Statistics
+  const areaStats = useMemo(() => {
+    if (!activePointsList || activePointsList.length === 0) return null;
+
+    let minE = Infinity, maxE = -Infinity;
+    let minN = Infinity, maxN = -Infinity;
+    activePointsList.forEach((p) => {
+      const e = parseFloat(p.easting);
+      const n = parseFloat(p.northing);
+      if (!isNaN(e) && !isNaN(n)) {
+        if (e < minE) minE = e;
+        if (e > maxE) maxE = e;
+        if (n < minN) minN = n;
+        if (n > maxN) maxN = n;
+      }
+    });
+
     let area = 0;
     let perimeter = 0;
-    if (points.length >= 3) {
-      for (let i = 0; i < points.length; i++) {
-        const p1 = points[i];
-        const p2 = points[(i + 1) % points.length];
+    if (activePointsList.length >= 3) {
+      for (let i = 0; i < activePointsList.length; i++) {
+        const p1 = activePointsList[i];
+        const p2 = activePointsList[(i + 1) % activePointsList.length];
         const x1 = parseFloat(p1.easting);
         const y1 = parseFloat(p1.northing);
         const x2 = parseFloat(p2.easting);
@@ -439,20 +534,189 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
 
     return {
       minE, maxE, minN, maxN,
-      spanE: spanE > 0 ? spanE : 1,
-      spanN: spanN > 0 ? spanN : 1,
+      spanE: (maxE - minE) > 0 ? (maxE - minE) : 1,
+      spanN: (maxN - minN) > 0 ? (maxN - minN) : 1,
       area: area > 0 ? area : null,
       perimeter: perimeter > 0 ? perimeter : null
     };
-  }, [points]);
+  }, [activePointsList]);
 
-  // Reset View to extents
-  const handleResetView = () => {
-    setZoom(1.0);
+  // Setting-Out Geometry Anomaly Detector
+  const anomalies = useMemo(() => {
+    if (!points || points.length === 0) return [];
+    const list = [];
+
+    // 1. Duplicates
+    if (duplicateInfo.hasDuplicates) {
+      duplicateInfo.groups.forEach((g) => {
+        list.push({
+          type: 'duplicate',
+          severity: 'warning',
+          title: `Duplicate Location (${g.pointNames})`,
+          detail: `Coordinates match exactly within survey tolerance (${g.coordKey}).`
+        });
+      });
+    }
+
+    // 2. Outliers / Large Jumps in each area
+    areaGroups.groupList.forEach((grp) => {
+      for (let i = 0; i < grp.points.length - 1; i++) {
+        const p1 = grp.points[i];
+        const p2 = grp.points[i + 1];
+        const dist = Math.hypot(parseFloat(p2.easting) - parseFloat(p1.easting), parseFloat(p2.northing) - parseFloat(p1.northing));
+        if (dist > 100) {
+          list.push({
+            type: 'jump',
+            severity: 'info',
+            title: `Large Spacing in ${grp.code} (${dist.toFixed(1)}m)`,
+            detail: `${p1.id || p1.name} -> ${p2.id || p2.name} is ${dist.toFixed(1)}m apart. Check if tie-in point or separate block.`
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [points, duplicateInfo, areaGroups]);
+
+  // Reset / Fit camera view
+  const handleFitView = (targetArea = selectedArea) => {
     setPan({ x: 0, y: 0 });
+    if (targetArea === 'all' || !areaGroups.groups[targetArea]) {
+      setZoom(1.0);
+    } else {
+      const g = areaGroups.groups[targetArea];
+      if (stats && g.spanE > 0 && g.spanN > 0) {
+        const scaleX = stats.spanE / Math.max(g.spanE, 15);
+        const scaleY = stats.spanN / Math.max(g.spanN, 15);
+        const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY) * 0.7, 1.0), 12.0);
+
+        // Center on area centroid
+        const targetMidE = (g.minE + g.maxE) / 2;
+        const targetMidN = (g.minN + g.maxN) / 2;
+        const globalMidE = (stats.minE + stats.maxE) / 2;
+        const globalMidN = (stats.minN + stats.maxN) / 2;
+
+        const availW = 800 - 120;
+        const availH = 500 - 120;
+        const baseScale = Math.min(availW / stats.spanE, availH / stats.spanN);
+
+        const deltaE = (targetMidE - globalMidE) * baseScale;
+        const deltaN = (targetMidN - globalMidN) * baseScale;
+
+        // Account for rotation
+        const rotRad = (northRotation * Math.PI) / 180;
+        const rx = -deltaE * Math.cos(-rotRad) - (-deltaN) * Math.sin(-rotRad);
+        const ry = -deltaE * Math.sin(-rotRad) + (-deltaN) * Math.cos(-rotRad);
+
+        setPan({ x: rx * fitScale, y: -ry * fitScale });
+        setZoom(fitScale);
+      } else {
+        setZoom(1.5);
+      }
+    }
   };
 
-  // Render to canvas
+  // Center on single point
+  const handleCenterOnPoint = (pt) => {
+    if (!pt || !stats) return;
+    const ptE = parseFloat(pt.easting);
+    const ptN = parseFloat(pt.northing);
+    const globalMidE = (stats.minE + stats.maxE) / 2;
+    const globalMidN = (stats.minN + stats.maxN) / 2;
+
+    const availW = 800 - 120;
+    const availH = 500 - 120;
+    const baseScale = Math.min(availW / stats.spanE, availH / stats.spanN);
+
+    const deltaE = (ptE - globalMidE) * baseScale;
+    const deltaN = (ptN - globalMidN) * baseScale;
+
+    const rotRad = (northRotation * Math.PI) / 180;
+    const rx = -deltaE * Math.cos(-rotRad) - (-deltaN) * Math.sin(-rotRad);
+    const ry = -deltaE * Math.sin(-rotRad) + (-deltaN) * Math.cos(-rotRad);
+
+    setPan({ x: rx * 4.0, y: -ry * 4.0 });
+    setZoom(4.0);
+  };
+
+  // Switch Area & auto-fit
+  const handleSelectArea = (code) => {
+    setSelectedArea(code);
+    setActivePoint(null);
+    handleFitView(code);
+  };
+
+  // Cycle North rotation: 270 -> 0 -> 90 -> 180 -> 270
+  const handleCycleRotation = () => {
+    const sequence = [270, 0, 90, 180];
+    const nextIdx = (sequence.indexOf(northRotation) + 1) % sequence.length;
+    setNorthRotation(sequence[nextIdx]);
+  };
+
+  // Helper to map Point (E, N) to Screen Pixel
+  const getScreenCoordinates = useCallback((easting, northing, width, height) => {
+    if (!stats) return { x: 0, y: 0 };
+    const padding = 60;
+    const availW = width - padding * 2;
+    const availH = height - padding * 2;
+    const baseScale = Math.min(availW / stats.spanE, availH / stats.spanN);
+    const offsetX = padding + (availW - stats.spanE * baseScale) / 2;
+    const offsetY = padding + (availH - stats.spanN * baseScale) / 2;
+
+    return {
+      x: offsetX + (parseFloat(easting) - stats.minE) * baseScale,
+      y: height - (offsetY + (parseFloat(northing) - stats.minN) * baseScale)
+    };
+  }, [stats]);
+
+  // Invert Screen Mouse/Touch Point to locate nearest survey point
+  const findPointAtPixel = (canvasX, canvasY) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !stats || points.length === 0) return null;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const rotRad = (northRotation * Math.PI) / 180;
+
+    // Invert canvas transformation:
+    // 1. Pan offset relative to center
+    const dx = canvasX - (width / 2 + pan.x);
+    const dy = canvasY - (height / 2 + pan.y);
+
+    // 2. Rotate by +rotRad (counteracting the -rotRad canvas rotation)
+    const cosPos = Math.cos(rotRad);
+    const sinPos = Math.sin(rotRad);
+    const rx = dx * cosPos - dy * sinPos;
+    const ry = dx * sinPos + dy * cosPos;
+
+    // 3. Unscale by zoom
+    const ux = rx / zoom;
+    const uy = ry / zoom;
+
+    // 4. Translate back
+    const invX = ux + width / 2;
+    const invY = uy + height / 2;
+
+    let closest = null;
+    let minDistance = 22 / zoom; // Detection radius in plot units
+
+    points.forEach((pt) => {
+      if (isolateArea && selectedArea !== 'all') {
+        const ptCode = (pt.code || '').trim().toUpperCase();
+        if (ptCode !== selectedArea) return;
+      }
+      const scr = getScreenCoordinates(pt.easting, pt.northing, width, height);
+      const dist = Math.hypot(invX - scr.x, invY - scr.y);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closest = pt;
+      }
+    });
+
+    return closest;
+  };
+
+  // --- Main Canvas Render ---
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !stats || points.length === 0) return;
@@ -461,169 +725,264 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     const width = canvas.width;
     const height = canvas.height;
 
-    // Clear background
-    ctx.fillStyle = '#0f172a';
+    // High-contrast CAD dark workspace
+    ctx.fillStyle = '#090d16';
     ctx.fillRect(0, 0, width, height);
 
     ctx.save();
 
-    // Apply Pan and Zoom transform
+    // Pan & Zoom with Rotation
     ctx.translate(width / 2 + pan.x, height / 2 + pan.y);
+    const rotRad = (northRotation * Math.PI) / 180;
+    // Rotate canvas around center: when northRotation = 270, North (up) rotates to left (-X)
+    ctx.rotate(-rotRad);
     ctx.scale(zoom, zoom);
     ctx.translate(-width / 2, -height / 2);
 
-    const padding = 60;
-    const availW = width - padding * 2;
-    const availH = height - padding * 2;
-
-    // 1:1 isometric scale
-    const baseScale = Math.min(availW / stats.spanE, availH / stats.spanN);
-    const offsetX = padding + (availW - stats.spanE * baseScale) / 2;
-    const offsetY = padding + (availH - stats.spanN * baseScale) / 2;
-
-    const toScreen = (e, n) => ({
-      x: offsetX + (parseFloat(e) - stats.minE) * baseScale,
-      y: height - (offsetY + (parseFloat(n) - stats.minN) * baseScale)
-    });
-
-    // Draw grid lines
+    // 1. Survey Grid Lines
     if (showGrid) {
-      ctx.strokeStyle = 'rgba(51, 65, 85, 0.4)';
+      ctx.strokeStyle = 'rgba(30, 41, 59, 0.45)';
       ctx.lineWidth = 1 / zoom;
-      const step = 40;
-      for (let x = -width; x < width * 2; x += step) {
+      const step = 45;
+      for (let x = -width * 2; x < width * 3; x += step) {
         ctx.beginPath();
-        ctx.moveTo(x, -height);
-        ctx.lineTo(x, height * 2);
+        ctx.moveTo(x, -height * 2);
+        ctx.lineTo(x, height * 3);
         ctx.stroke();
       }
-      for (let y = -height; y < height * 2; y += step) {
+      for (let y = -height * 2; y < height * 3; y += step) {
         ctx.beginPath();
-        ctx.moveTo(-width, y);
-        ctx.lineTo(width * 2, y);
+        ctx.moveTo(-width * 2, y);
+        ctx.lineTo(width * 3, y);
         ctx.stroke();
       }
     }
 
-    // Draw connecting lines / boundary polygon
-    if (connectLines && points.length > 1) {
-      ctx.beginPath();
-      const first = toScreen(points[0].easting, points[0].northing);
-      ctx.moveTo(first.x, first.y);
+    // 2. Draw Connecting Lines & Closed Polygons (PER AREA - NO SPIDERWEB!)
+    if (connectLines) {
+      areaGroups.groupList.forEach((grp) => {
+        const isDimmed = selectedArea !== 'all' && grp.code !== selectedArea;
+        if (isDimmed && isolateArea) return;
 
-      for (let i = 1; i < points.length; i++) {
-        const pt = toScreen(points[i].easting, points[i].northing);
-        ctx.lineTo(pt.x, pt.y);
-      }
+        if (grp.points.length > 1) {
+          ctx.beginPath();
+          const first = getScreenCoordinates(grp.points[0].easting, grp.points[0].northing, width, height);
+          ctx.moveTo(first.x, first.y);
 
-      // If closeLoop is enabled and >= 3 points, close the polygon (4 lines for 4 points!)
-      if (closeLoop && points.length >= 3) {
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(59, 130, 246, 0.18)';
-        ctx.fill();
-      }
+          for (let i = 1; i < grp.points.length; i++) {
+            const pt = getScreenCoordinates(grp.points[i].easting, grp.points[i].northing, width, height);
+            ctx.lineTo(pt.x, pt.y);
+          }
 
-      ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2.5 / zoom;
-      ctx.stroke();
+          if (closeLoop && grp.points.length >= 3) {
+            ctx.closePath();
+            ctx.fillStyle = isDimmed ? 'rgba(71, 85, 105, 0.08)' : grp.palette.fill;
+            ctx.fill();
+          }
+
+          ctx.strokeStyle = isDimmed ? 'rgba(100, 116, 139, 0.35)' : grp.palette.stroke;
+          ctx.lineWidth = (isDimmed ? 1.5 : 2.5) / zoom;
+          if (isDimmed) {
+            ctx.setLineDash([4 / zoom, 4 / zoom]);
+          } else {
+            ctx.setLineDash([]);
+          }
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      });
     }
 
-    // Draw points and labels
+    // 3. Draw Survey Points & Pillars
     points.forEach((pt, index) => {
-      const scr = toScreen(pt.easting, pt.northing);
-      const isDup = duplicateInfo.duplicateIndices.has(index);
-      const isLoopClose = duplicateInfo.loopClosureGroup &&
-        (index === 0 || index === points.length - 1) &&
-        duplicateInfo.loopClosureGroup.items.some((it) => it.index === index);
+      const ptCode = (pt.code || '').trim().toUpperCase();
+      const grp = areaGroups.groups[ptCode] || areaGroups.groupList[0] || { palette: AREA_PALETTES[0] };
+      const isDimmed = selectedArea !== 'all' && ptCode !== selectedArea;
+      if (isDimmed && isolateArea) return;
 
-      // Outer glow circle
-      if (isDup) {
-        ctx.fillStyle = isLoopClose ? 'rgba(59, 130, 246, 0.4)' : 'rgba(245, 158, 11, 0.45)';
+      const scr = getScreenCoordinates(pt.easting, pt.northing, width, height);
+      const isDup = duplicateInfo.duplicateIndices.has(index);
+      const isHovered = hoveredPoint && (hoveredPoint.id === pt.id || (hoveredPoint.easting === pt.easting && hoveredPoint.northing === pt.northing));
+      const isActive = activePoint && (activePoint.id === pt.id || (activePoint.easting === pt.easting && activePoint.northing === pt.northing));
+
+      // Outer glow / Selection Ring
+      if (isActive || isHovered) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+        ctx.beginPath();
+        ctx.arc(scr.x, scr.y, 14 / zoom, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2 / zoom;
         ctx.beginPath();
         ctx.arc(scr.x, scr.y, 11 / zoom, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (isDup) {
+        ctx.fillStyle = 'rgba(245, 158, 11, 0.45)';
+        ctx.beginPath();
+        ctx.arc(scr.x, scr.y, 10 / zoom, 0, Math.PI * 2);
         ctx.fill();
-      } else {
-        ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+      } else if (!isDimmed) {
+        ctx.fillStyle = grp.palette.halo;
         ctx.beginPath();
         ctx.arc(scr.x, scr.y, 8 / zoom, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // Core point dot
-      ctx.fillStyle = isDup ? (isLoopClose ? '#60a5fa' : '#f59e0b') : '#38bdf8';
+      // Center Core Dot
+      ctx.fillStyle = isDimmed
+        ? 'rgba(148, 163, 184, 0.5)'
+        : isDup
+        ? '#f59e0b'
+        : grp.palette.dot;
+
       ctx.beginPath();
-      ctx.arc(scr.x, scr.y, (isDup ? 5.5 : 4.5) / zoom, 0, Math.PI * 2);
+      ctx.arc(scr.x, scr.y, (isDup || isActive ? 5.5 : 4.2) / zoom, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = isDup ? '#fef08a' : '#ffffff';
+      ctx.strokeStyle = isDimmed ? '#475569' : isDup ? '#fef08a' : '#ffffff';
       ctx.lineWidth = (isDup ? 2 : 1.5) / zoom;
       ctx.stroke();
 
-      // Point label text
-      if (showLabels) {
-        let label = pt.id || pt.name || `P${index + 1}`;
-        if (isDup) {
-          label += isLoopClose ? ' [CLOSE]' : ' [DUP]';
+      // 4. Point Labels (With Upright Counter-Rotation)
+      if (labelMode !== 'hidden' && (!isDimmed || isActive)) {
+        let labelText = '';
+        if (labelMode === 'short') {
+          // Extract numeric suffix or short name
+          const numMatch = (pt.id || pt.name || '').match(/(\d+)$/);
+          labelText = numMatch ? numMatch[1] : (pt.id || pt.name || `${index + 1}`);
+        } else if (labelMode === 'code') {
+          labelText = pt.code || grp.code;
+        } else {
+          labelText = pt.id || pt.name || `P${index + 1}`;
         }
-        ctx.font = `bold ${Math.max(10, 11 / zoom)}px system-ui, sans-serif`;
-        const textWidth = ctx.measureText(label).width;
 
-        // Label pill background
-        ctx.fillStyle = isDup ? 'rgba(35, 20, 10, 0.95)' : 'rgba(15, 23, 42, 0.9)';
-        ctx.fillRect(scr.x + 8 / zoom, scr.y - 14 / zoom, textWidth + 8 / zoom, 16 / zoom);
-        ctx.strokeStyle = isDup ? 'rgba(245, 158, 11, 0.9)' : 'rgba(56, 189, 248, 0.6)';
+        if (isDup) labelText += ' [DUP]';
+
+        ctx.save();
+        // Translate to point screen position and counter-rotate so text is always horizontal!
+        ctx.translate(scr.x, scr.y);
+        ctx.rotate(rotRad);
+
+        ctx.font = `bold ${Math.max(10, 11 / zoom)}px system-ui, sans-serif`;
+        const textWidth = ctx.measureText(labelText).width;
+
+        // Label Background Pill
+        ctx.fillStyle = isDup ? 'rgba(35, 20, 10, 0.95)' : grp.palette.labelBg;
+        ctx.fillRect(8 / zoom, -14 / zoom, textWidth + 8 / zoom, 16 / zoom);
+
+        ctx.strokeStyle = isDup ? '#f59e0b' : grp.palette.stroke;
         ctx.lineWidth = 1 / zoom;
-        ctx.strokeRect(scr.x + 8 / zoom, scr.y - 14 / zoom, textWidth + 8 / zoom, 16 / zoom);
+        ctx.strokeRect(8 / zoom, -14 / zoom, textWidth + 8 / zoom, 16 / zoom);
 
         ctx.fillStyle = isDup ? '#fef08a' : '#f8fafc';
-        ctx.fillText(label, scr.x + 12 / zoom, scr.y - 2 / zoom);
+        ctx.fillText(labelText, 12 / zoom, -2 / zoom);
+
+        ctx.restore();
       }
     });
 
-    ctx.restore(); // Restore pan/zoom
+    ctx.restore(); // Restore world transform
 
-    // Draw North Arrow (fixed in top-right corner)
-    const naX = width - 40;
-    const naY = 40;
+    // 5. Draw Digital North Compass Rose (Fixed in Corner)
+    const naX = width - 48;
+    const naY = 48;
     ctx.save();
-    ctx.strokeStyle = '#94a3b8';
-    ctx.fillStyle = '#ef4444';
-    ctx.lineWidth = 2;
 
+    // Compass dial circle
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
     ctx.beginPath();
-    ctx.moveTo(naX, naY - 20);
-    ctx.lineTo(naX - 7, naY + 5);
-    ctx.lineTo(naX, naY);
+    ctx.arc(naX, naY, 26, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Rotate compass needle to reflect True North relative to view rotation
+    ctx.save();
+    ctx.translate(naX, naY);
+    ctx.rotate(-rotRad);
+
+    // North arrow head (Red)
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.moveTo(0, -20);
+    ctx.lineTo(-6, 2);
+    ctx.lineTo(0, -2);
     ctx.closePath();
     ctx.fill();
 
+    // South arrow tail (Silver)
     ctx.fillStyle = '#94a3b8';
     ctx.beginPath();
-    ctx.moveTo(naX, naY - 20);
-    ctx.lineTo(naX + 7, naY + 5);
-    ctx.lineTo(naX, naY);
+    ctx.moveTo(0, -20);
+    ctx.lineTo(6, 2);
+    ctx.lineTo(0, -2);
     ctx.closePath();
     ctx.fill();
 
-    ctx.font = 'bold 11px sans-serif';
-    ctx.fillStyle = '#ef4444';
+    // South needle
+    ctx.fillStyle = '#475569';
+    ctx.beginPath();
+    ctx.moveTo(0, 18);
+    ctx.lineTo(-5, 0);
+    ctx.lineTo(0, 2);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.font = 'bold 9px sans-serif';
+    ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
-    ctx.fillText('N', naX, naY - 24);
+    ctx.fillText('N', 0, -22);
+
+    ctx.restore(); // Restore needle transform
+
+    // Bearing label below compass
+    ctx.font = 'bold 9px monospace';
+    ctx.fillStyle = '#38bdf8';
+    ctx.textAlign = 'center';
+    ctx.fillText(`N: ${northRotation}°00'`, naX, naY + 38);
     ctx.restore();
 
-    // Coordinate Extents Text
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    // 6. Dimensional and Coordinate Extents Watermark
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
     ctx.font = '10px monospace';
-    ctx.fillText(`E: ${stats.minE.toFixed(2)}m → ${stats.maxE.toFixed(2)}m  (Width: ${stats.spanE.toFixed(2)}m)`, 16, height - 24);
-    ctx.fillText(`N: ${stats.minN.toFixed(2)}m → ${stats.maxN.toFixed(2)}m  (Length: ${stats.spanN.toFixed(2)}m)`, 16, height - 10);
+    const displayStats = areaStats || stats;
+    ctx.fillText(
+      `E: ${displayStats.minE.toFixed(2)}m → ${displayStats.maxE.toFixed(2)}m (W: ${displayStats.spanE.toFixed(2)}m)`,
+      16,
+      height - 22
+    );
+    ctx.fillText(
+      `N: ${displayStats.minN.toFixed(2)}m → ${displayStats.maxN.toFixed(2)}m (L: ${displayStats.spanN.toFixed(2)}m)`,
+      16,
+      height - 8
+    );
+  }, [
+    points,
+    stats,
+    areaStats,
+    areaGroups,
+    selectedArea,
+    isolateArea,
+    connectLines,
+    closeLoop,
+    labelMode,
+    northRotation,
+    showGrid,
+    zoom,
+    pan,
+    hoveredPoint,
+    activePoint,
+    duplicateInfo,
+    getScreenCoordinates
+  ]);
 
-  }, [points, stats, connectLines, closeLoop, showLabels, showGrid, zoom, pan, duplicateInfo]);
-
-  // Pan & Zoom Event Handlers
+  // Desktop Mouse Interactions
   const handleWheel = (e) => {
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.15 : 0.85;
-    setZoom((prev) => Math.min(Math.max(prev * zoomFactor, 0.3), 15));
+    setZoom((prev) => Math.min(Math.max(prev * zoomFactor, 0.25), 35));
   };
 
   const handleMouseDown = (e) => {
@@ -636,74 +995,100 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
       setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
     }
 
-    // Tooltip detection
     const canvas = canvasRef.current;
-    if (!canvas || !stats || points.length === 0) return;
+    if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
     const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-    // Transform mouse coordinate to account for pan/zoom
-    const transX = (mouseX - (canvas.width / 2 + pan.x)) / zoom + canvas.width / 2;
-    const transY = (mouseY - (canvas.height / 2 + pan.y)) / zoom + canvas.height / 2;
-
-    const padding = 60;
-    const availW = canvas.width - padding * 2;
-    const availH = canvas.height - padding * 2;
-    const baseScale = Math.min(availW / stats.spanE, availH / stats.spanN);
-    const offsetX = padding + (availW - stats.spanE * baseScale) / 2;
-    const offsetY = padding + (availH - stats.spanN * baseScale) / 2;
-
-    let found = null;
-    points.forEach((pt) => {
-      const scrX = offsetX + (parseFloat(pt.easting) - stats.minE) * baseScale;
-      const scrY = canvas.height - (offsetY + (parseFloat(pt.northing) - stats.minN) * baseScale);
-      const dist = Math.hypot(transX - scrX, transY - scrY);
-      if (dist < 14 / zoom) {
-        found = pt;
-      }
-    });
+    const found = findPointAtPixel(mouseX, mouseY);
     setHoveredPoint(found);
   };
 
-  const handleMouseUp = () => setIsDragging(false);
+  const handleMouseUp = (e) => {
+    setIsDragging(false);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
 
-  // Mobile Touch Pan & Pinch-to-Zoom Handlers
+    const clickedPt = findPointAtPixel(mouseX, mouseY);
+    if (clickedPt) {
+      setActivePoint(clickedPt);
+    }
+  };
+
+  // Mobile Touch Pan & Pinch-to-Zoom
   const handleTouchStart = (e) => {
     if (e.touches.length === 1) {
-      const touch = e.touches[0];
+      const t = e.touches[0];
+      touchStartRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
       setIsDragging(true);
-      setDragStart({ x: touch.clientX - pan.x, y: touch.clientY - pan.y });
+      setDragStart({ x: t.clientX - pan.x, y: t.clientY - pan.y });
     } else if (e.touches.length === 2) {
+      setIsDragging(false);
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      setTouchStartDist(dist);
+      pinchRef.current = {
+        startDist: dist,
+        startZoom: zoom
+      };
     }
   };
 
   const handleTouchMove = (e) => {
     if (e.touches.length === 1 && isDragging) {
-      const touch = e.touches[0];
-      setPan({ x: touch.clientX - dragStart.x, y: touch.clientY - dragStart.y });
-    } else if (e.touches.length === 2 && touchStartDist) {
+      const t = e.touches[0];
+      setPan({ x: t.clientX - dragStart.x, y: t.clientY - dragStart.y });
+    } else if (e.touches.length === 2 && pinchRef.current) {
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      const factor = dist / touchStartDist;
-      if (factor > 0.4 && factor < 2.5) {
-        setZoom((prev) => Math.min(Math.max(prev * factor, 0.3), 15));
-        setTouchStartDist(dist);
+      const scaleRatio = dist / pinchRef.current.startDist;
+      const newZoom = Math.min(Math.max(pinchRef.current.startZoom * scaleRatio, 0.25), 35);
+      setZoom(newZoom);
+    }
+  };
+
+  const handleTouchEnd = (e) => {
+    if (e.touches.length === 0) {
+      setIsDragging(false);
+      pinchRef.current = null;
+
+      // Detect Tap vs Drag
+      if (touchStartRef.current && e.changedTouches.length > 0) {
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const dist = Math.hypot(endX - touchStartRef.current.x, endY - touchStartRef.current.y);
+        const duration = Date.now() - touchStartRef.current.time;
+
+        if (dist < 12 && duration < 350) {
+          const now = Date.now();
+          const isDoubleTap = now - lastTapRef.current < 300;
+          lastTapRef.current = now;
+
+          const canvas = canvasRef.current;
+          if (canvas) {
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = (endX - rect.left) * (canvas.width / rect.width);
+            const canvasY = (endY - rect.top) * (canvas.height / rect.height);
+
+            if (isDoubleTap) {
+              // Double-tap zooms in 2x centered on tap
+              setZoom((z) => Math.min(z * 1.8, 30));
+            } else {
+              const tappedPt = findPointAtPixel(canvasX, canvasY);
+              setActivePoint(tappedPt);
+            }
+          }
+        }
       }
     }
   };
 
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-    setTouchStartDist(null);
-  };
-
-  // Export high-res PNG image
+  // Export PNG Image (Includes North orientation and area legend)
   const downloadPlotImage = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -715,58 +1100,66 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
 
     expCtx.fillStyle = '#090d16';
     expCtx.fillRect(0, 0, 1600, 1100);
-    expCtx.drawImage(canvas, 40, 120, 1520, 920);
+    expCtx.drawImage(canvas, 40, 130, 1520, 910);
 
-    // Title block
+    // Title Block
     expCtx.fillStyle = '#1e293b';
-    expCtx.fillRect(40, 30, 1520, 80);
+    expCtx.fillRect(40, 30, 1520, 85);
     expCtx.strokeStyle = '#334155';
     expCtx.lineWidth = 1;
-    expCtx.strokeRect(40, 30, 1520, 80);
+    expCtx.strokeRect(40, 30, 1520, 85);
 
-    expCtx.font = 'bold 24px system-ui, sans-serif';
+    expCtx.font = 'bold 22px system-ui, sans-serif';
     expCtx.fillStyle = '#38bdf8';
-    expCtx.fillText(title.toUpperCase(), 60, 68);
+    expCtx.fillText(`${title.toUpperCase()} — ESTATE SETTING-OUT`, 60, 66);
 
-    expCtx.font = '14px monospace';
+    expCtx.font = '13px monospace';
     expCtx.fillStyle = '#94a3b8';
-    expCtx.fillText(`Points: ${points.length}  |  Date: ${new Date().toLocaleDateString()}  |  True 1:1 Scale`, 60, 94);
+    expCtx.fillText(
+      `Points: ${points.length}  |  Orientation: North ${northRotation}°00'00"  |  Areas: ${areaGroups.groupList.map((g) => `${g.code} (${g.points.length})`).join(', ')}`,
+      60,
+      94
+    );
 
-    if (stats) {
+    if (displayStats) {
       expCtx.textAlign = 'right';
-      expCtx.fillText(`Width: ${stats.spanE.toFixed(3)}m  |  Length: ${stats.spanN.toFixed(3)}m`, 1540, 68);
-      if (stats.area) {
-        expCtx.fillText(`Area: ${stats.area.toFixed(2)} m² (${(stats.area / 10000).toFixed(4)} Ha)  |  Perimeter: ${stats.perimeter.toFixed(2)}m`, 1540, 94);
+      expCtx.fillText(`Easting: ${displayStats.spanE.toFixed(3)}m  |  Northing: ${displayStats.spanN.toFixed(3)}m`, 1540, 66);
+      if (displayStats.area) {
+        expCtx.fillText(
+          `Area: ${displayStats.area.toFixed(2)} m² (${(displayStats.area / 10000).toFixed(4)} Ha)  |  Perimeter: ${displayStats.perimeter.toFixed(2)}m`,
+          1540,
+          94
+        );
       }
       expCtx.textAlign = 'left';
     }
 
     const link = document.createElement('a');
-    link.download = `Survey_Plot_${new Date().toISOString().split('T')[0]}.png`;
+    link.download = `Estate_SettingOut_Plot_N${northRotation}_${new Date().toISOString().split('T')[0]}.png`;
     link.href = exportCanvas.toDataURL('image/png');
     link.click();
   };
 
-  // Export clean CSV directly from points array
+  // Export CSV
   const downloadCsvFromPoints = () => {
     if (!points || points.length === 0) return;
-    let csv = 'PointID,Easting,Northing,Elevation,Code\n';
+    let csv = 'PointID,Code,Easting,Northing,Elevation\n';
     points.forEach((p, idx) => {
       const id = p.id || p.name || `P${idx + 1}`;
       const code = p.code || '';
-      csv += `${id},${p.easting},${p.northing},${p.elevation || '0.000'},${code}\n`;
+      csv += `${id},${code},${p.easting},${p.northing},${p.elevation || '0.000'}\n`;
     });
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Survey_Points_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `Estate_SettingOut_Points_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
 
-  // Export DXF vector file directly from points
+  // Export DXF CAD
   const downloadDxfFromPoints = () => {
     if (!points || points.length === 0) return;
     const dxfContent = generateDxfFile(points, { closeLoop });
@@ -774,7 +1167,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Survey_Drawing_${new Date().toISOString().split('T')[0]}.dxf`;
+    a.download = `Estate_SettingOut_Drawing_${new Date().toISOString().split('T')[0]}.dxf`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -791,106 +1184,223 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     );
   }
 
+  // Active Point Context (Distance & Bearing to next point in area)
+  const activePointContext = useMemo(() => {
+    if (!activePoint) return null;
+    const code = (activePoint.code || '').trim().toUpperCase();
+    const grp = areaGroups.groups[code] || areaGroups.groupList[0];
+    if (!grp) return null;
+
+    const idx = grp.points.findIndex(
+      (p) => (p.id && p.id === activePoint.id) || (p.easting === activePoint.easting && p.northing === activePoint.northing)
+    );
+
+    let nextInfo = null;
+    if (idx !== -1 && idx < grp.points.length - 1) {
+      const nextPt = grp.points[idx + 1];
+      const dE = parseFloat(nextPt.easting) - parseFloat(activePoint.easting);
+      const dN = parseFloat(nextPt.northing) - parseFloat(activePoint.northing);
+      const dist = Math.hypot(dE, dN);
+      let brg = (Math.atan2(dE, dN) * 180 / Math.PI + 360) % 360;
+      nextInfo = {
+        name: nextPt.id || nextPt.name,
+        distance: dist.toFixed(3),
+        bearing: brg.toFixed(1)
+      };
+    }
+
+    return {
+      areaName: grp.code,
+      palette: grp.palette,
+      indexInArea: idx + 1,
+      totalInArea: grp.points.length,
+      next: nextInfo
+    };
+  }, [activePoint, areaGroups]);
+
   return (
-    <div className="bg-slate-900 rounded-2xl border border-slate-800 p-4 sm:p-6 shadow-xl flex flex-col space-y-4">
-      {/* Top Bar Controls & Action Buttons */}
-      <div className="flex flex-col gap-3 pb-3 border-b border-slate-800 text-xs">
-        {/* Toggle Controls */}
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="inline-flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-medium cursor-pointer transition select-none text-[11px]">
-            <input
-              type="checkbox"
-              checked={connectLines}
-              onChange={(e) => setConnectLines(e.target.checked)}
-              className="rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 w-3.5 h-3.5"
-            />
-            Connect Lines
-          </label>
-
-          {connectLines && (
-            <label className="inline-flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-sky-950/60 hover:bg-sky-900/60 border border-sky-800/70 text-sky-300 font-semibold cursor-pointer transition select-none text-[11px]">
-              <input
-                type="checkbox"
-                checked={closeLoop}
-                onChange={(e) => setCloseLoop(e.target.checked)}
-                className="rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 w-3.5 h-3.5"
-              />
-              Close Plot (All Sides)
-            </label>
-          )}
-
-          <label className="inline-flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-medium cursor-pointer transition select-none text-[11px]">
-            <input
-              type="checkbox"
-              checked={showLabels}
-              onChange={(e) => setShowLabels(e.target.checked)}
-              className="rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 w-3.5 h-3.5"
-            />
-            Labels
-          </label>
-
-          <label className="inline-flex items-center gap-1.5 py-1.5 px-2.5 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-medium cursor-pointer transition select-none text-[11px]">
-            <input
-              type="checkbox"
-              checked={showGrid}
-              onChange={(e) => setShowGrid(e.target.checked)}
-              className="rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 w-3.5 h-3.5"
-            />
-            Grid
-          </label>
-
-          {duplicateInfo.hasDuplicates ? (
-            <span
-              className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold"
-              title={duplicateInfo.groups.map((g) => `${g.pointNames}: ${g.coordKey}`).join(' | ')}
+    <div ref={containerRef} className="bg-slate-900 rounded-2xl border border-slate-800 p-3 sm:p-5 shadow-xl flex flex-col space-y-3.5 select-none">
+      {/* 1. TOP BAR: Area Selection & Quick Jump Chips */}
+      <div className="flex flex-col gap-2.5 pb-3 border-b border-slate-800 text-xs">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full scrollbar-none">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+              Estate Areas:
+            </span>
+            {/* All Areas Chip */}
+            <button
+              type="button"
+              onClick={() => handleSelectArea('all')}
+              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                selectedArea === 'all'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+              }`}
             >
-              <Warning size={13} weight="fill" className="text-amber-400" />
-              {duplicateInfo.groups.length} Duplicate{duplicateInfo.groups.length > 1 ? 's' : ''}
-              {duplicateInfo.loopClosureGroup && ' (Loop Close)'}
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
-              <CheckCircle size={12} weight="fill" /> Unique Coords
-            </span>
+              <Globe size={13} weight="bold" /> All Areas ({points.length})
+            </button>
+
+            {/* Individual Area Chips */}
+            {areaGroups.groupList.map((grp) => {
+              const isSelected = selectedArea === grp.code;
+              return (
+                <button
+                  key={grp.code}
+                  type="button"
+                  onClick={() => handleSelectArea(grp.code)}
+                  className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition shrink-0 cursor-pointer flex items-center gap-1.5 border ${
+                    isSelected
+                      ? `${grp.palette.badge} bg-slate-800 font-bold shadow-sm`
+                      : 'bg-slate-800/80 border-slate-700/60 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: grp.palette.dot }}
+                  />
+                  <span>{grp.code}</span>
+                  <span className="text-[10px] opacity-75">({grp.points.length})</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Setting-Out Health / Anomalies Alert Badge */}
+          {anomalies.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowHealthScan(!showHealthScan)}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-semibold hover:bg-amber-500/25 transition cursor-pointer"
+            >
+              <Warning size={13} weight="fill" />
+              <span>{anomalies.length} Setting-Out Alert{anomalies.length > 1 ? 's' : ''}</span>
+            </button>
           )}
         </div>
 
-        {/* Pan / Zoom and Export Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
-          <div className="inline-flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
-            <button
-              type="button"
-              onClick={() => setZoom((z) => Math.min(z * 1.25, 15))}
-              className="p-2 sm:p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded active:bg-slate-600 min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
-              title="Zoom In"
-              aria-label="Zoom in"
-            >
-              <Plus size={14} weight="bold" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setZoom((z) => Math.max(z * 0.8, 0.3))}
-              className="p-2 sm:p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded active:bg-slate-600 min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
-              title="Zoom Out"
-              aria-label="Zoom out"
-            >
-              <Minus size={14} weight="bold" />
-            </button>
-            <button
-              type="button"
-              onClick={handleResetView}
-              className="px-3 py-1.5 sm:py-1 text-slate-300 hover:text-white hover:bg-slate-700 rounded text-[11px] font-semibold active:bg-slate-600 min-h-[36px] flex items-center justify-center cursor-pointer"
-              title="Fit to Extents"
-            >
-              Fit
-            </button>
+        {/* 2. TOOLBAR: North 270° Orientation, Labels Toggle, and Drawing Options */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+            {/* North 270°0' Orientation Selector */}
+            <div className="inline-flex items-center rounded-lg bg-slate-800 p-0.5 border border-slate-700">
+              <button
+                type="button"
+                onClick={() => setNorthRotation(270)}
+                className={`px-2.5 py-1.5 rounded text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                  northRotation === 270
+                    ? 'bg-sky-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                title="Rotate layout to Estate Grid North 270°0' (West / Left)"
+              >
+                <span>🧭 North 270°0'</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNorthRotation(0)}
+                className={`px-2.5 py-1.5 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
+                  northRotation === 0
+                    ? 'bg-sky-500 text-slate-950 font-bold shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                title="Reset layout to True North Up (0°)"
+              >
+                <span>N 0° Up</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleCycleRotation}
+                className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700 cursor-pointer"
+                title={`Cycle rotation 90° (Current: ${northRotation}°)`}
+                aria-label="Rotate 90 degrees"
+              >
+                <ArrowsClockwise size={13} weight="bold" />
+              </button>
+            </div>
+
+            {/* Point Labels Mode Selector */}
+            <div className="inline-flex items-center rounded-lg bg-slate-800 p-0.5 border border-slate-700 text-[11px]">
+              <span className="px-2 text-slate-400 font-medium text-[10px] uppercase">Labels:</span>
+              <button
+                type="button"
+                onClick={() => setLabelMode('hidden')}
+                className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${
+                  labelMode === 'hidden'
+                    ? 'bg-slate-700 text-white font-bold'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                title="Hide point names completely (clean dots for mobile)"
+              >
+                Hide
+              </button>
+              <button
+                type="button"
+                onClick={() => setLabelMode('short')}
+                className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${
+                  labelMode === 'short'
+                    ? 'bg-slate-700 text-white font-bold'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                title="Show short number index only (1, 2, 23)"
+              >
+                Short
+              </button>
+              <button
+                type="button"
+                onClick={() => setLabelMode('name')}
+                className={`px-2 py-1 rounded font-semibold transition cursor-pointer ${
+                  labelMode === 'name'
+                    ? 'bg-slate-700 text-white font-bold'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                title="Show full point names (e.g. CLEARWATERRD1)"
+              >
+                Full
+              </button>
+            </div>
+
+            {/* Geometry Polylines & Close Loop Checkboxes */}
+            <label className="inline-flex items-center gap-1 py-1 px-2 rounded-md bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-medium cursor-pointer transition select-none text-[11px]">
+              <input
+                type="checkbox"
+                checked={connectLines}
+                onChange={(e) => setConnectLines(e.target.checked)}
+                className="rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 w-3 h-3"
+              />
+              Lines
+            </label>
+
+            {connectLines && (
+              <label className="inline-flex items-center gap-1 py-1 px-2 rounded-md bg-sky-950/60 hover:bg-sky-900/60 border border-sky-800/70 text-sky-300 font-semibold cursor-pointer transition select-none text-[11px]">
+                <input
+                  type="checkbox"
+                  checked={closeLoop}
+                  onChange={(e) => setCloseLoop(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-blue-500 w-3 h-3"
+                />
+                Close Loop
+              </label>
+            )}
+
+            {selectedArea !== 'all' && (
+              <label className="inline-flex items-center gap-1 py-1 px-2 rounded-md bg-slate-800/80 border border-slate-700 text-slate-300 text-[11px] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isolateArea}
+                  onChange={(e) => setIsolateArea(e.target.checked)}
+                  className="rounded border-slate-700 bg-slate-800 text-blue-500 w-3 h-3"
+                />
+                Isolate Area
+              </label>
+            )}
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          {/* Export Actions */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               type="button"
               onClick={downloadCsvFromPoints}
-              className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 active:bg-slate-600 text-slate-200 font-semibold text-xs transition border border-slate-700 shadow-sm min-h-[38px] cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs transition border border-slate-700 cursor-pointer"
               title="Download points as CSV file"
             >
               <Download size={13} weight="bold" /> .csv
@@ -898,16 +1408,16 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
             <button
               type="button"
               onClick={downloadDxfFromPoints}
-              className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-semibold text-xs transition shadow-sm min-h-[38px] cursor-pointer"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs transition cursor-pointer"
               title="Download AutoCAD DXF CAD drawing"
             >
-              <FileCode size={13} weight="bold" /> .dxf CAD
+              <FileCode size={13} weight="bold" /> .dxf
             </button>
             <button
               type="button"
               onClick={downloadPlotImage}
-              className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold text-xs transition shadow-sm min-h-[38px] cursor-pointer"
-              title="Download high-res PNG image"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition cursor-pointer"
+              title="Download high-res PNG plot image"
             >
               <Camera size={13} weight="bold" /> Plot PNG
             </button>
@@ -915,8 +1425,34 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
         </div>
       </div>
 
-      {/* Main Canvas Plot with Pan & Zoom */}
-      <div className="relative w-full overflow-hidden rounded-xl bg-slate-950 border border-slate-800 select-none">
+      {/* 3. SETTING-OUT ANOMALY SCAN ACCORDION (COLLAPSIBLE) */}
+      {showHealthScan && anomalies.length > 0 && (
+        <div className="p-3 bg-slate-950 rounded-xl border border-amber-500/30 text-xs space-y-2">
+          <div className="flex items-center justify-between text-amber-300 font-bold">
+            <span className="flex items-center gap-1.5">
+              <Warning size={15} weight="fill" /> Estate Geometry & Setting-Out Diagnostic
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowHealthScan(false)}
+              className="text-slate-400 hover:text-white text-[11px]"
+            >
+              <X size={14} />
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+            {anomalies.map((anom, aIdx) => (
+              <div key={aIdx} className="p-2 rounded-lg bg-slate-900 border border-slate-800">
+                <span className="font-semibold text-amber-200 block">{anom.title}</span>
+                <span className="text-slate-400 block mt-0.5">{anom.detail}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 4. MAIN CANVAS PLOT (MOBILE OPTIMIZED TOUCH VIEWPORT) */}
+      <div className="relative w-full overflow-hidden rounded-xl bg-slate-950 border border-slate-800 touch-none">
         <canvas
           ref={canvasRef}
           width={800}
@@ -937,53 +1473,151 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
           className="w-full h-auto max-h-[500px] object-contain cursor-grab active:cursor-grabbing block"
         />
 
-        {/* Hovered Point Tooltip */}
-        {hoveredPoint && (
-          <div className="absolute top-4 left-4 bg-slate-900/95 border border-blue-500/50 p-2.5 rounded-lg text-xs font-mono shadow-2xl backdrop-blur-sm pointer-events-none text-slate-200">
-            <div className="font-bold text-sky-400 text-sm mb-1">{hoveredPoint.id || hoveredPoint.name}</div>
-            <div>Easting: <span className="text-white">{hoveredPoint.easting}</span></div>
-            <div>Northing: <span className="text-white">{hoveredPoint.northing}</span></div>
-            <div>Elev (Z): <span className="text-slate-400">{hoveredPoint.elevation || '0.000'}</span></div>
-            {hoveredPoint.code && <div>Code: <span className="text-yellow-400">{hoveredPoint.code}</span></div>}
-            {hoveredDupGroup && (
-              <div className="mt-2 pt-2 border-t border-amber-500/30 text-[11px]">
-                <div className="text-amber-300 font-bold flex items-center gap-1">
-                  <Warning size={13} weight="fill" className="text-amber-400 shrink-0" />
-                  {hoveredDupGroup.isLoopClosure ? 'Traverse Loop Closure Point' : 'Duplicate Coordinates Detected'}
-                </div>
-                <div className="text-amber-200/90 mt-0.5">
-                  Matches: <strong className="text-white">{hoveredDupGroup.pointNames}</strong>
-                </div>
-              </div>
-            )}
+        {/* FLOATING MOBILE THUMB CONTROL PAD (BOTTOM-RIGHT) */}
+        <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 z-20">
+          <div className="bg-slate-900/90 backdrop-blur-md rounded-xl p-1 border border-slate-700/80 shadow-2xl flex flex-col gap-1">
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.min(z * 1.3, 35))}
+              className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-slate-200 hover:text-white hover:bg-slate-700/80 active:bg-blue-600 rounded-lg transition text-base font-bold cursor-pointer"
+              title="Zoom In"
+              aria-label="Zoom In"
+            >
+              <Plus size={16} weight="bold" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom((z) => Math.max(z * 0.75, 0.25))}
+              className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-slate-200 hover:text-white hover:bg-slate-700/80 active:bg-blue-600 rounded-lg transition text-base font-bold cursor-pointer"
+              title="Zoom Out"
+              aria-label="Zoom Out"
+            >
+              <Minus size={16} weight="bold" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFitView()}
+              className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-sky-400 hover:text-sky-300 hover:bg-slate-700/80 active:bg-blue-600 rounded-lg transition text-[10px] font-bold uppercase cursor-pointer"
+              title="Fit to bounds"
+              aria-label="Fit View"
+            >
+              FIT
+            </button>
+          </div>
+        </div>
+
+        {/* HOVER TOOLTIP (DESKTOP) */}
+        {hoveredPoint && !activePoint && (
+          <div className="absolute top-3 left-3 bg-slate-900/95 border border-sky-500/50 p-2.5 rounded-xl text-xs font-mono shadow-2xl backdrop-blur-md pointer-events-none text-slate-200 z-10">
+            <div className="font-bold text-sky-400 text-sm flex items-center gap-2">
+              <span>{hoveredPoint.id || hoveredPoint.name}</span>
+              {hoveredPoint.code && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                  {hoveredPoint.code}
+                </span>
+              )}
+            </div>
+            <div className="mt-1 text-slate-300 text-[11px]">
+              <div>E: <span className="text-white font-semibold">{hoveredPoint.easting}</span></div>
+              <div>N: <span className="text-white font-semibold">{hoveredPoint.northing}</span></div>
+              <div>Z: <span className="text-slate-400">{hoveredPoint.elevation || '0.000'}</span></div>
+            </div>
           </div>
         )}
 
-        {/* Pan/Zoom Hint */}
-        <div className="absolute bottom-3 right-3 text-[10px] text-slate-400 bg-slate-900/85 px-2.5 py-1 rounded-md border border-slate-800 backdrop-blur-sm pointer-events-none">
-          Pinch/Scroll to zoom • Drag to pan
+        {/* ACTIVE POINT INSPECTOR DRAWER (MOBILE TAP & FIELD INSPECT) */}
+        {activePoint && activePointContext && (
+          <div className="absolute bottom-3 left-3 right-16 sm:right-auto sm:max-w-xs bg-slate-900/95 border border-sky-500/80 p-3 rounded-xl text-xs font-mono shadow-2xl backdrop-blur-md text-slate-200 z-30">
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: activePointContext.palette.dot }}
+                />
+                <span className="font-bold text-sky-400 text-sm">{activePoint.id || activePoint.name}</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                  {activePoint.code || activePointContext.areaName}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActivePoint(null)}
+                className="text-slate-400 hover:text-white p-1"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-x-2 gap-y-1 mt-2 text-[11px]">
+              <div>Easting: <span className="text-white font-bold">{activePoint.easting}</span></div>
+              <div>Northing: <span className="text-white font-bold">{activePoint.northing}</span></div>
+              <div>Elev (Z): <span className="text-slate-300">{activePoint.elevation || '0.000'}m</span></div>
+              <div>Peg #{activePointContext.indexInArea} of {activePointContext.totalInArea}</div>
+            </div>
+
+            {/* Staking out guide to next peg */}
+            {activePointContext.next && (
+              <div className="mt-2 pt-1.5 border-t border-slate-800/80 text-[10px] text-sky-300">
+                <span className="text-slate-400">Next ({activePointContext.next.name}): </span>
+                <strong className="text-white">{activePointContext.next.distance}m</strong> @ bearing{' '}
+                <strong className="text-amber-400">{activePointContext.next.bearing}°</strong>
+              </div>
+            )}
+
+            <div className="mt-2.5 pt-1.5 border-t border-slate-800 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => handleCenterOnPoint(activePoint)}
+                className="flex-1 py-1 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-[10px] font-bold transition"
+              >
+                Center Point (4x Zoom)
+              </button>
+              <button
+                type="button"
+                onClick={() => setActivePoint(null)}
+                className="py-1 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-[10px]"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Interactive Gesture & Orientation Overlay Tag */}
+        <div className="absolute top-3 right-20 text-[10px] font-mono text-slate-400 bg-slate-900/85 px-2.5 py-1 rounded-md border border-slate-800 backdrop-blur-sm pointer-events-none hidden sm:block">
+          Pinch to Zoom • Tap Point to Inspect • North {northRotation}°00'
         </div>
       </div>
 
-      {/* Dimensional Summary Footer */}
+      {/* 5. DIMENSIONAL SUMMARY FOOTER */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800/80 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 text-xs">
           <div>
-            <span className="text-slate-500 block">Total Plotted:</span>
-            <span className="text-slate-200 font-bold font-mono">{points.length} Points ({closeLoop && points.length >= 3 ? `${points.length} Closed Sides` : `${points.length - 1} Lines`})</span>
+            <span className="text-slate-500 block text-[11px]">Area Displayed:</span>
+            <span className="text-slate-200 font-bold font-mono text-xs">
+              {selectedArea === 'all' ? `Estate-wide (${points.length} Pts)` : `${selectedArea} (${activePointsList.length} Pts)`}
+            </span>
           </div>
           <div>
-            <span className="text-slate-500 block">East Span (Width):</span>
-            <span className="text-slate-200 font-bold font-mono">{stats.spanE.toFixed(2)} m</span>
+            <span className="text-slate-500 block text-[11px]">East Span (Width):</span>
+            <span className="text-slate-200 font-bold font-mono text-xs">
+              {(areaStats || stats).spanE.toFixed(2)} m
+            </span>
           </div>
           <div>
-            <span className="text-slate-500 block">North Span (Length):</span>
-            <span className="text-slate-200 font-bold font-mono">{stats.spanN.toFixed(2)} m</span>
+            <span className="text-slate-500 block text-[11px]">North Span (Length):</span>
+            <span className="text-slate-200 font-bold font-mono text-xs">
+              {(areaStats || stats).spanN.toFixed(2)} m
+            </span>
           </div>
           <div>
-            <span className="text-slate-500 block">{stats.area ? 'Calculated Area:' : 'Scale:'}</span>
-            <span className="text-emerald-400 font-bold font-mono">
-              {stats.area ? `${stats.area.toFixed(1)} m² (${(stats.area / 10000).toFixed(4)} Ha)` : '1:1 True Scale'}
+            <span className="text-slate-500 block text-[11px]">
+              {(areaStats || stats).area ? 'Surface Area:' : 'Layout Orientation:'}
+            </span>
+            <span className="text-emerald-400 font-bold font-mono text-xs">
+              {(areaStats || stats).area
+                ? `${(areaStats || stats).area.toFixed(1)} m² (${((areaStats || stats).area / 10000).toFixed(4)} Ha)`
+                : `North ${northRotation}°00'`}
             </span>
           </div>
         </div>
@@ -991,6 +1625,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
     </div>
   );
 };
+
 
 // ============================================================================
 // MAIN POINT CONVERTER PAGE
