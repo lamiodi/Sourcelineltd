@@ -2,22 +2,6 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, Link } from 'react-router-dom';
 import Layout from './layout/Layout';
 import Home from './pages/Home';
-import About from './pages/About';
-import Services from './pages/Services';
-import ServiceDetail from './pages/ServiceDetail';
-import LandSurveying from './pages/services/LandSurveying';
-import EngineeringSurvey from './pages/services/EngineeringSurvey';
-import DigitalMapping from './pages/services/DigitalMapping';
-import Portfolio from './pages/Portfolio';
-import ProjectDetail from './pages/ProjectDetail';
-import Verify from './pages/Verify';
-import Contact from './pages/Contact';
-import Blog from './pages/Blog';
-import BlogDetail from './pages/BlogDetail';
-import Privacy from './pages/Privacy';
-import NotFound from './pages/NotFound';
-import AdminLayout from './pages/admin/AdminLayout';
-import Login from './pages/admin/Login';
 import Preloader from './components/Preloader';
 import { 
   ChatTeardropText, 
@@ -30,7 +14,23 @@ import {
 } from '@phosphor-icons/react';
 import './App.css';
 
-// Lazy-loaded heavy components to optimize production bundle size
+// Lazy-loaded routes to optimize production bundle size
+const About = lazy(() => import('./pages/About'));
+const Services = lazy(() => import('./pages/Services'));
+const ServiceDetail = lazy(() => import('./pages/ServiceDetail'));
+const LandSurveying = lazy(() => import('./pages/services/LandSurveying'));
+const EngineeringSurvey = lazy(() => import('./pages/services/EngineeringSurvey'));
+const DigitalMapping = lazy(() => import('./pages/services/DigitalMapping'));
+const Portfolio = lazy(() => import('./pages/Portfolio'));
+const ProjectDetail = lazy(() => import('./pages/ProjectDetail'));
+const Verify = lazy(() => import('./pages/Verify'));
+const Contact = lazy(() => import('./pages/Contact'));
+const Blog = lazy(() => import('./pages/Blog'));
+const BlogDetail = lazy(() => import('./pages/BlogDetail'));
+const Privacy = lazy(() => import('./pages/Privacy'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'));
+const Login = lazy(() => import('./pages/admin/Login'));
 const PointConverter = lazy(() => import('./pages/PointConverter'));
 const QuotationBuilder = lazy(() => import('./pages/admin/QuotationBuilder'));
 const ProjectList = lazy(() => import('./pages/admin/ProjectList'));
@@ -57,7 +57,9 @@ function App() {
           {/* Public Routes wrapped in Main Layout */}
           <Route element={
             <Layout>
-              <Outlet />
+              <Suspense fallback={<RouteLoading />}>
+                <Outlet />
+              </Suspense>
             </Layout>
           }>
             <Route path="/" element={<Home />} />
@@ -76,19 +78,23 @@ function App() {
             <Route path="/privacy" element={<Privacy />} />
             
             {/* Lazy-loaded Point Converter */}
-            <Route path="/point-converter" element={
-              <Suspense fallback={<RouteLoading />}>
-                <PointConverter />
-              </Suspense>
-            } />
+            <Route path="/point-converter" element={<PointConverter />} />
             <Route path="/converter" element={<Navigate to="/point-converter" replace />} />
             <Route path="/tools/point-converter" element={<Navigate to="/point-converter" replace />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 
           {/* Admin Routes */}
-          <Route path="/admin/login" element={<Login />} />
-          <Route path="/admin" element={<AdminLayout />}>
+          <Route path="/admin/login" element={
+            <Suspense fallback={<RouteLoading />}>
+              <Login />
+            </Suspense>
+          } />
+          <Route path="/admin" element={
+            <Suspense fallback={<RouteLoading />}>
+              <AdminLayout />
+            </Suspense>
+          }>
             <Route index element={
               <div className="space-y-8">
                 <div>

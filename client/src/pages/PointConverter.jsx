@@ -16,6 +16,7 @@ import {
   Plus,
   Minus,
   ArrowsClockwise,
+  ArrowsLeftRight,
   Warning,
   WarningCircle,
   ShieldCheck,
@@ -291,6 +292,106 @@ const detectDuplicateCoordinates = (points, tolerance = 0.005) => {
 };
 
 // ============================================================================
+// AUTO-DETECT COORDINATE INVERSION (X / Y SWAP) ENGINE
+// ============================================================================
+export const detectCoordinateInversion = (points) => {
+  if (!points || points.length === 0) {
+    return {
+      isInvertedSuspected: false,
+      reason: '',
+      avgEasting: 0,
+      avgNorthing: 0,
+      confidence: 0
+    };
+  }
+
+  let sumE = 0;
+  let sumN = 0;
+  let validCount = 0;
+
+  for (let i = 0; i < points.length; i++) {
+    const e = parseFloat(points[i].easting);
+    const n = parseFloat(points[i].northing);
+    if (!isNaN(e) && !isNaN(n)) {
+      sumE += e;
+      sumN += n;
+      validCount++;
+    }
+  }
+
+  if (validCount === 0) {
+    return {
+      isInvertedSuspected: false,
+      reason: '',
+      avgEasting: 0,
+      avgNorthing: 0,
+      confidence: 0
+    };
+  }
+
+  const avgE = sumE / validCount;
+  const avgN = sumN / validCount;
+
+  // Case 1: Standard Nigerian UTM Zone 31N / 32N coordinates (Minna or WGS84 UTM)
+  // Easting: typically 300,000 to 780,000 (Lagos/Ogun/Oyo: ~500k - 700k)
+  // Northing: typically 650,000 to 1,500,000 (Lagos/Ogun: ~700k - 800k+, North: > 1,000,000)
+  // If the Easting column contains values characteristic of Northing (> 650,000 and greater than Northing column),
+  // or Northing is distinctly in the typical Easting range (< 600,000 while Easting is > 650,000):
+  const isUtmRange = (avgE > 100000 || avgN > 100000);
+  if (isUtmRange) {
+    if (avgE > 650000 && avgN < 600000) {
+      return {
+        isInvertedSuspected: true,
+        reason: `Easting (~${avgE.toFixed(0)}m) is larger than Northing (~${avgN.toFixed(0)}m), matching an inverted N,E column order typical in Total Station exports.`,
+        avgEasting: avgE,
+        avgNorthing: avgN,
+        confidence: 0.95
+      };
+    }
+    if (avgE > avgN && (avgE - avgN > 40000)) {
+      return {
+        isInvertedSuspected: true,
+        reason: `Values in the Easting column exceed Northing by ${(avgE - avgN).toFixed(0)}m. Cadastral records in this zone typically have Northing > Easting.`,
+        avgEasting: avgE,
+        avgNorthing: avgN,
+        confidence: 0.85
+      };
+    }
+  }
+
+  // Case 2: Geographic coordinates (Lat/Long in decimal degrees)
+  // In Nigeria: Latitude is ~4°N to ~14°N, Longitude is ~2°E to ~15°E
+  if (Math.abs(avgE) <= 180 && Math.abs(avgN) <= 180) {
+    if (avgE >= 4 && avgE <= 14 && avgN >= 2 && avgN <= 8) {
+      return {
+        isInvertedSuspected: true,
+        reason: `Column 1 (${avgE.toFixed(4)}°) resembles Latitude and Column 2 (${avgN.toFixed(4)}°) resembles Longitude. Standard GIS format requires Longitude (X), Latitude (Y).`,
+        avgEasting: avgE,
+        avgNorthing: avgN,
+        confidence: 0.9
+      };
+    }
+  }
+
+  return {
+    isInvertedSuspected: false,
+    reason: '',
+    avgEasting: avgE,
+    avgNorthing: avgN,
+    confidence: 0
+  };
+};
+
+export const swapPointCoordinates = (points) => {
+  if (!points || points.length === 0) return [];
+  return points.map((pt) => ({
+    ...pt,
+    easting: pt.northing,
+    northing: pt.easting
+  }));
+};
+
+// ============================================================================
 // MOBILE & DESKTOP FILE UPLOAD CARD COMPONENT
 // ============================================================================
 const MobileFileUploadCard = ({
@@ -381,7 +482,7 @@ const AREA_PALETTES = [
   { id: 'teal', stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.18)', dot: '#2dd4bf', halo: 'rgba(20, 184, 166, 0.35)', badge: 'bg-teal-500/20 text-teal-300 border-teal-500/40', labelBg: 'rgba(4, 47, 46, 0.92)' },
 ];
 
-const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
+const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordinates }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -575,8 +676,20 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
       }
     });
 
+    // 3. Suspected Coordinate Inversion (X / Y Swapped)
+    const inversionCheck = detectCoordinateInversion(points);
+    if (inversionCheck.isInvertedSuspected) {
+      list.push({
+        type: 'inversion',
+        severity: 'warning',
+        title: 'Suspected Inverted Coordinates (X/Y Swapped)',
+        detail: inversionCheck.reason,
+        action: onSwapCoordinates ? 'swap' : null
+      });
+    }
+
     return list;
-  }, [points, duplicateInfo, areaGroups]);
+  }, [points, duplicateInfo, areaGroups, onSwapCoordinates]);
 
   // Active Point Context (Distance & Bearing to next point in area)
   const activePointContext = useMemo(() => {
@@ -1407,8 +1520,18 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
             )}
           </div>
 
-          {/* Export Actions */}
+          {/* Export & Coordinate Actions */}
           <div className="flex items-center gap-1.5 flex-wrap">
+            {onSwapCoordinates && (
+              <button
+                type="button"
+                onClick={onSwapCoordinates}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs transition border border-amber-500/40 cursor-pointer shadow-2xs"
+                title="Swap Easting and Northing coordinates (X ⇄ Y)"
+              >
+                <ArrowsLeftRight size={13} weight="bold" /> Swap X ⇄ Y
+              </button>
+            )}
             <button
               type="button"
               onClick={downloadCsvFromPoints}
@@ -1454,9 +1577,20 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
             {anomalies.map((anom, aIdx) => (
-              <div key={aIdx} className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                <span className="font-semibold text-amber-200 block">{anom.title}</span>
-                <span className="text-slate-400 block mt-0.5">{anom.detail}</span>
+              <div key={aIdx} className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <span className="font-semibold text-amber-200 block">{anom.title}</span>
+                  <span className="text-slate-400 block mt-0.5">{anom.detail}</span>
+                </div>
+                {anom.action === 'swap' && onSwapCoordinates && (
+                  <button
+                    type="button"
+                    onClick={onSwapCoordinates}
+                    className="mt-2 inline-flex items-center gap-1 self-start px-2 py-1 rounded bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 text-[10px] font-bold border border-amber-500/40 cursor-pointer transition"
+                  >
+                    <ArrowsLeftRight size={12} weight="bold" /> Swap Coordinates Now
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -1942,6 +2076,10 @@ const PointConverter = () => {
   const csvDuplicates = useMemo(() => detectDuplicateCoordinates(parsedCsvPoints), [parsedCsvPoints]);
   const scriptDuplicates = useMemo(() => detectDuplicateCoordinates(parsedScriptPoints), [parsedScriptPoints]);
 
+  // --- Auto-Detect Inverted Coordinates (X/Y Swap) State ---
+  const csvInversion = useMemo(() => detectCoordinateInversion(parsedCsvPoints), [parsedCsvPoints]);
+  const scriptInversion = useMemo(() => detectCoordinateInversion(parsedScriptPoints), [parsedScriptPoints]);
+
   // Helper: File Upload Handler for Mobile & Desktop
   const handleFileUpload = (file, targetSetter, fileNameSetter, autoProcessCallback) => {
     if (!file) return;
@@ -2210,6 +2348,15 @@ const PointConverter = () => {
     }
   };
 
+  // Swap Easting (X) and Northing (Y) coordinates for AutoCAD-to-CSV points
+  const handleSwapCsvCoordinates = () => {
+    if (parsedCsvPoints.length === 0) return;
+    const swapped = swapPointCoordinates(parsedCsvPoints);
+    setParsedCsvPoints(swapped);
+    setCsvOutput(buildCsvString(swapped));
+    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate point${swapped.length > 1 ? 's' : ''}.`);
+  };
+
   const downloadCsv = () => {
     if (!csvOutput) return;
     const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
@@ -2427,6 +2574,15 @@ const PointConverter = () => {
     } else {
       setSuccessMsg('No redundant duplicate points found to remove.');
     }
+  };
+
+  // Swap Easting (X) and Northing (Y) coordinates for CSV-to-Script points
+  const handleSwapScriptCoordinates = () => {
+    if (parsedScriptPoints.length === 0) return;
+    const swapped = swapPointCoordinates(parsedScriptPoints);
+    setParsedScriptPoints(swapped);
+    setScriptOutput(buildScriptString(swapped));
+    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate point${swapped.length > 1 ? 's' : ''}.`);
   };
 
   const downloadScript = () => {
@@ -2852,6 +3008,14 @@ const PointConverter = () => {
                           <CheckCircle weight="fill" size={13} /> {parsedCsvPoints.length} Points (Unique)
                         </span>
                       )}
+                      <button
+                        type="button"
+                        onClick={handleSwapCsvCoordinates}
+                        className="px-2.5 py-1 rounded font-semibold text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Swap Easting (X) and Northing (Y) coordinates"
+                      >
+                        <ArrowsLeftRight size={13} weight="bold" /> Swap X ⇄ Y
+                      </button>
                       <div className="inline-flex rounded-md border border-slate-200 p-0.5 bg-white text-xs">
                         <button
                           onClick={() => setViewModeCsv('text')}
@@ -2871,6 +3035,35 @@ const PointConverter = () => {
                 </div>
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
+                  {/* Auto-Detect Inverted Coordinates Warning Banner */}
+                  {csvInversion.isInvertedSuspected && (
+                    <div className="mb-4 p-3.5 rounded-xl bg-orange-50/90 border border-orange-200 text-orange-950 text-xs shadow-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <ArrowsLeftRight size={18} className="text-orange-600 shrink-0 mt-0.5" weight="bold" />
+                          <div>
+                            <div className="font-bold text-slate-900 flex items-center gap-2">
+                              <span>Possible Inverted Coordinates Detected (X / Y Swapped)</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold border border-orange-200">
+                                N,E Export Pattern
+                              </span>
+                            </div>
+                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
+                              {csvInversion.reason} Click below to immediately invert columns across all points and update the 2D plot.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSwapCsvCoordinates}
+                          className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer self-end sm:self-center"
+                        >
+                          <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y Now
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Auto-Detect Duplicate Coordinates Warning Banner */}
                   {csvDuplicates.hasDuplicates && (
                     <div className="mb-4 p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs shadow-xs">
@@ -3058,7 +3251,11 @@ const PointConverter = () => {
                 </div>
                 <span className="text-xs font-medium text-slate-500">True 1:1 Isometric Scale</span>
               </div>
-              <ShapePlotViewer points={parsedCsvPoints} title="AutoCAD to DGPS Closed Plot" />
+              <ShapePlotViewer 
+                points={parsedCsvPoints} 
+                title="AutoCAD to DGPS Closed Plot" 
+                onSwapCoordinates={handleSwapCsvCoordinates}
+              />
             </div>
           </motion.div>
         )}
@@ -3255,6 +3452,14 @@ const PointConverter = () => {
                           <CheckCircle weight="fill" size={13} /> {parsedScriptPoints.length} Points (Unique)
                         </span>
                       )}
+                      <button
+                        type="button"
+                        onClick={handleSwapScriptCoordinates}
+                        className="px-2.5 py-1 rounded font-semibold text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Swap Easting (X) and Northing (Y) coordinates"
+                      >
+                        <ArrowsLeftRight size={13} weight="bold" /> Swap X ⇄ Y
+                      </button>
                       <div className="inline-flex rounded-md border border-slate-200 p-0.5 bg-white text-xs">
                         <button
                           onClick={() => setViewModeScript('text')}
@@ -3274,6 +3479,35 @@ const PointConverter = () => {
                 </div>
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
+                  {/* Auto-Detect Inverted Coordinates Warning Banner */}
+                  {scriptInversion.isInvertedSuspected && (
+                    <div className="mb-4 p-3.5 rounded-xl bg-orange-50/90 border border-orange-200 text-orange-950 text-xs shadow-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <ArrowsLeftRight size={18} className="text-orange-600 shrink-0 mt-0.5" weight="bold" />
+                          <div>
+                            <div className="font-bold text-slate-900 flex items-center gap-2">
+                              <span>Possible Inverted Coordinates Detected (X / Y Swapped)</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold border border-orange-200">
+                                N,E Export Pattern
+                              </span>
+                            </div>
+                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
+                              {scriptInversion.reason} Click below to immediately invert columns across all points and update the 2D plot.
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleSwapScriptCoordinates}
+                          className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer self-end sm:self-center"
+                        >
+                          <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y Now
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Auto-Detect Duplicate Coordinates Warning Banner */}
                   {scriptDuplicates.hasDuplicates && (
                     <div className="mb-4 p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-amber-900 text-xs shadow-xs">
@@ -3465,7 +3699,11 @@ const PointConverter = () => {
                 </div>
                 <span className="text-xs font-medium text-slate-500">True 1:1 Isometric Scale</span>
               </div>
-              <ShapePlotViewer points={parsedScriptPoints} title="Survey CSV Closed Plot" />
+              <ShapePlotViewer 
+                points={parsedScriptPoints} 
+                title="Survey CSV Closed Plot" 
+                onSwapCoordinates={handleSwapScriptCoordinates}
+              />
             </div>
           </motion.div>
         )}
