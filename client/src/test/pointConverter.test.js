@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectCoordinateInversion, swapPointCoordinates } from '../pages/PointConverter';
+import { detectCoordinateInversion, swapPointCoordinates } from '../utils/cadastralSurveyUtils.js';
 
 describe('PointConverter - Coordinate Inversion & Swap Engine', () => {
   it('should detect normal Nigerian UTM coordinates as not inverted', () => {
