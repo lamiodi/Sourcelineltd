@@ -223,15 +223,9 @@ const Home = () => {
               transition={{ delay: 0.6, duration: 0.6 }}
               className="max-w-xl mb-10"
             >
-              <p className="text-base sm:text-lg text-white/90 leading-relaxed font-light mb-4">
+              <p className="text-base sm:text-lg text-white/90 leading-relaxed font-light mb-0">
                 Before you acquire, design, or build — verify your exact boundaries. We deliver registered cadastral survey plans, geodetic engineering control, and official Record Copy lodgments that permanently secure your land titles against boundary disputes and encroachment.
               </p>
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md">
-                <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-                <span className="text-xs text-white/90 font-medium">
-                  Guaranteed statutory title protection under SURCON seal & lodgment
-                </span>
-              </div>
             </motion.div>
           </div>
 
@@ -246,7 +240,7 @@ const Home = () => {
               to="/contact"
               className="bg-primary text-white px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow hover:shadow-primary-glow-lg flex items-center justify-center gap-2.5 hover:-translate-y-1 group w-[85%] sm:w-auto whitespace-nowrap"
             >
-              Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform shrink-0" />
+              Make an Enquiry <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform shrink-0" />
             </Link>
             <a
               href="https://wa.me/2348034618227?text=Hello%20Sourceline%20Limited,%20I%20would%20like%20to%20consult%20with%20your%20survey%20team%20regarding%20a%20property/project."
@@ -265,7 +259,7 @@ const Home = () => {
             transition={{ delay: 1, duration: 0.8 }}
             className="hidden sm:flex flex-wrap items-center gap-6 sm:gap-8 opacity-80"
           >
-            {['SURCON Sealed & Certified', 'Geodetic GNSS Accuracy', 'Surveyor-General Lodged'].map((item, i) => (
+            {['SURCON Sealed & Certified', 'Geodetic GNSS Accuracy'].map((item, i) => (
               <div key={i} className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 <span className="text-white/80 text-[10px] sm:text-xs font-mono tracking-wider uppercase">{item}</span>
@@ -700,7 +694,7 @@ const Home = () => {
                   to="/contact"
                   className="inline-flex items-center gap-2 bg-secondary text-white px-8 py-3.5 rounded-2xl font-bold text-sm uppercase tracking-wider hover:bg-secondary-light transition-all duration-300 hover:-translate-y-0.5 group"
                 >
-                  Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  Make an Enquiry <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
             </div>
           </div>
@@ -896,7 +890,7 @@ const Home = () => {
               to="/contact"
               className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 group w-full sm:w-auto"
             >
-              Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              Make an Enquiry <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <a
               href="https://wa.me/2348034618227?text=Hello%20Sourceline%20Limited,%20I%20would%20like%20to%20consult%20with%20your%20survey%20team%20regarding%20a%20property/project."

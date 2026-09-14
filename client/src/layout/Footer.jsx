@@ -147,7 +147,7 @@ const Footer = () => {
               </li>
               <li>
                 <Link to="/contact" className="text-white/70 hover:text-primary transition-colors">
-                  Verify Your Land
+                  Make an Enquiry
                 </Link>
               </li>
             </ul>
@@ -184,7 +184,7 @@ const Footer = () => {
                 to="/contact" 
                 className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl bg-primary text-white text-xs font-bold uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg transition-all duration-300 hover:-translate-y-0.5"
               >
-                Verify Your Land
+                Make an Enquiry
               </Link>
             </div>
           </div>

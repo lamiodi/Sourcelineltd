@@ -121,7 +121,7 @@ const DigitalMapping = () => {
               to="/contact"
               className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow flex justify-center items-center gap-2 group"
             >
-              Verify Your Land <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
+              Make an Enquiry <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/services"

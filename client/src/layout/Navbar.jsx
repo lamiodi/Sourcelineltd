@@ -137,7 +137,7 @@ const Navbar = () => {
                 to="/contact"
                 className="bg-primary text-white px-6 py-2.5 rounded-xl text-[13px] font-bold uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
               >
-                Verify Your Land
+                Make an Enquiry
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -148,7 +148,7 @@ const Navbar = () => {
                 to="/contact"
                 className="bg-primary text-white px-3.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider shadow-primary-glow"
               >
-                Verify Land
+                Make an Enquiry
               </Link>
               <button
                 onClick={() => setIsOpen(!isOpen)}

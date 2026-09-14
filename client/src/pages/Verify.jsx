@@ -243,7 +243,7 @@ const Verify = () => {
                   href="/contact"
                   className="bg-primary text-white px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow flex items-center justify-center gap-2"
                 >
-                  Verify Your Land
+                  Make an Enquiry
                 </a>
                 <a
                   href="https://wa.me/2348034618227?text=Hello%20Sourceline%20Limited,%20I%20reviewed%20your%20verification%20credentials%20and%20would%20like%20to%20consult%20on%20a%20survey%20project."

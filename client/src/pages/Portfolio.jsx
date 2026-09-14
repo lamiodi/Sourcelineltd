@@ -497,7 +497,7 @@ const Portfolio = () => {
               to="/contact"
               className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-sm uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2.5 group w-full sm:w-[240px]"
             >
-              Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              Make an Enquiry <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/services"

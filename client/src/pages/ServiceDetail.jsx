@@ -152,7 +152,7 @@ const ServiceDetail = () => {
                     to="/contact"
                     className="flex items-center justify-between w-full bg-primary text-white px-6 py-4 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow group"
                   >
-                    <span>Verify Your Land</span>
+                    <span>Make an Enquiry</span>
                     <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
                   </Link>
 

@@ -111,7 +111,7 @@ const Contact = () => {
   return (
     <div className="font-sans">
       <SEO
-        title="Verify Your Land | Sourceline Limited"
+        title="Make an Enquiry | Sourceline Limited"
         description="Request statutory land verification and cadastral survey consultation from Sourceline Limited. Practice supervised by Surv. Fajimi S. Adebayo (SURCON No. 5073, mnis). Office in Sangotedo, Lagos."
       />
 
