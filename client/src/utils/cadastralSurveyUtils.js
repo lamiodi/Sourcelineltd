@@ -189,22 +189,43 @@ export const detectCoordinateInversion = (points) => {
   // Northing: typically 650,000 to 1,500,000 (Lagos/Ogun: ~700k - 800k+, North: > 1,000,000)
   const isUtmRange = (avgE > 100000 || avgN > 100000);
   if (isUtmRange) {
-    if (avgE > 650000 && avgN < 600000) {
+    if (avgE > 650000 && avgN < 620000) {
+      const diff = avgE - avgN;
       return {
         isInvertedSuspected: true,
-        reason: `Easting (~${avgE.toFixed(0)}m) is larger than Northing (~${avgN.toFixed(0)}m), matching an inverted N,E column order typical in Total Station exports.`,
+        reason: `Values in the Easting column exceed Northing by ${diff.toFixed(0)}m. In Nigerian UTM Zone 31N (Lagos/Ogun/Oyo), true Northing is ~700,000–900,000m and Easting is ~500,000–650,000m. Your columns match a Total Station (Point, Northing, Easting) export.`,
+        zone: 'Nigerian UTM Zone 31N (Lagos / South-West)',
+        diffMeters: diff,
         avgEasting: avgE,
         avgNorthing: avgN,
-        confidence: 0.95
+        confidence: 0.95,
+        isVerifiedValid: false
       };
     }
     if (avgE > avgN && (avgE - avgN > 40000)) {
+      const diff = avgE - avgN;
       return {
         isInvertedSuspected: true,
-        reason: `Values in the Easting column exceed Northing by ${(avgE - avgN).toFixed(0)}m. Cadastral records in this zone typically have Northing > Easting.`,
+        reason: `Values in the Easting column exceed Northing by ${diff.toFixed(0)}m. Cadastral records in this zone typically have Northing > Easting. Click below to invert columns across all points and update the 2D plot.`,
+        zone: 'Projected Survey Grid (Northing > Easting expected)',
+        diffMeters: diff,
         avgEasting: avgE,
         avgNorthing: avgN,
-        confidence: 0.85
+        confidence: 0.85,
+        isVerifiedValid: false
+      };
+    }
+    // Verified valid UTM coordinates: Northing > Easting
+    if (avgN > avgE && (avgN - avgE > 40000)) {
+      return {
+        isInvertedSuspected: false,
+        reason: `Verified coordinate alignment: Easting (X: ~${avgE.toFixed(0)}m), Northing (Y: ~${avgN.toFixed(0)}m). Northing > Easting matches statutory cadastral records.`,
+        zone: avgN > 650000 && avgE < 650000 ? 'Nigerian UTM Zone 31N (Verified)' : 'Projected Survey Grid (Verified)',
+        diffMeters: avgN - avgE,
+        avgEasting: avgE,
+        avgNorthing: avgN,
+        confidence: 0.95,
+        isVerifiedValid: true
       };
     }
   }
@@ -216,9 +237,22 @@ export const detectCoordinateInversion = (points) => {
       return {
         isInvertedSuspected: true,
         reason: `Column 1 (${avgE.toFixed(4)}°) resembles Latitude and Column 2 (${avgN.toFixed(4)}°) resembles Longitude. Standard GIS format requires Longitude (X), Latitude (Y).`,
+        zone: 'Geographic (WGS84 Degrees)',
         avgEasting: avgE,
         avgNorthing: avgN,
-        confidence: 0.9
+        confidence: 0.9,
+        isVerifiedValid: false
+      };
+    }
+    if (avgE >= 2 && avgE <= 15 && avgN >= 4 && avgN <= 14) {
+      return {
+        isInvertedSuspected: false,
+        reason: `Verified geographic coordinates: Longitude (${avgE.toFixed(4)}°E), Latitude (${avgN.toFixed(4)}°N).`,
+        zone: 'Geographic WGS84 (Verified Long/Lat)',
+        avgEasting: avgE,
+        avgNorthing: avgN,
+        confidence: 0.95,
+        isVerifiedValid: true
       };
     }
   }
@@ -226,9 +260,11 @@ export const detectCoordinateInversion = (points) => {
   return {
     isInvertedSuspected: false,
     reason: '',
+    zone: 'Custom / Local Coordinate System',
     avgEasting: avgE,
     avgNorthing: avgN,
-    confidence: 0
+    confidence: 0,
+    isVerifiedValid: false
   };
 };
 

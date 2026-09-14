@@ -11,20 +11,30 @@ const Layout = ({ children }) => {
   const location = useLocation();
 
   useEffect(() => {
-    // Robot-like animation for the WhatsApp tooltip
+    // Only run WhatsApp tooltip on desktop when document is visible
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return;
+
     const interval = setInterval(() => {
+      if (document.hidden) return;
       setShowTooltip(true);
       setTimeout(() => {
         setShowTooltip(false);
-      }, 4000); // Tooltip stays visible for 4 seconds
-    }, 12000); // Pops up every 12 seconds
+      }, 4000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 600);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          setShowScrollTop(window.scrollY > 600);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);

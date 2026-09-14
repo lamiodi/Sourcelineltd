@@ -62,7 +62,7 @@ const Verify = () => {
         <div className="max-w-4xl mx-auto space-y-8 relative">
 
           {/* CAC Verification */}
-          <div className="reveal bg-slate-50 p-8 md:p-10 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-500 group relative overflow-hidden">
+          <div className="reveal bg-white p-8 md:p-10 rounded-3xl border border-gray-100 shadow-card hover:shadow-card-hover transition-all duration-500 hover:-translate-y-1 group relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-[40px] translate-x-1/2 -translate-y-1/2" />
 
             <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
@@ -71,25 +71,25 @@ const Verify = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-2xl font-display font-bold text-secondary mb-4">Corporate Affairs Commission (CAC)</h3>
-                <p className="text-slate-600 leading-relaxed mb-6 max-w-prose">
+                <p className="text-gray-600 leading-relaxed mb-6 max-w-prose">
                   Sourceline Limited is fully incorporated under the Companies and Allied Matters Act. Our business registration ensures we operate as a legal entity in Nigeria.
                 </p>
-                <div className="bg-white p-6 rounded-2xl mb-6 border border-slate-200 relative overflow-hidden shadow-sm">
+                <div className="bg-surface p-6 rounded-2xl mb-6 border border-gray-100 relative overflow-hidden shadow-soft">
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary to-accent" />
                   <div className="space-y-3">
-                    <p className="text-slate-600 flex justify-between items-center pb-2 border-b border-slate-100">
+                    <p className="text-gray-600 flex justify-between items-center pb-2 border-b border-gray-100">
                       <strong className="text-secondary text-sm uppercase tracking-wider font-mono">Company Name</strong>
-                      <span className="font-medium font-mono text-sm">Sourceline Limited</span>
+                      <span className="font-medium font-mono text-sm text-secondary">Sourceline Limited</span>
                     </p>
-                    <p className="text-slate-600 flex justify-between items-center pt-1">
+                    <p className="text-gray-600 flex justify-between items-center pt-1">
                       <strong className="text-secondary text-sm uppercase tracking-wider font-mono">RC Number</strong>
-                      <span className="font-mono bg-slate-50 px-3 py-1 rounded-md border border-slate-200 text-sm font-bold text-secondary">RC-1572232</span>
+                      <span className="font-mono bg-white px-3 py-1 rounded-md border border-gray-200 text-sm font-bold text-secondary">RC-1572232</span>
                     </p>
-                    <p className="text-slate-600 flex justify-between items-center pt-3 border-t border-slate-100">
+                    <p className="text-gray-600 flex justify-between items-center pt-3 border-t border-gray-100">
                       <strong className="text-secondary text-sm uppercase tracking-wider font-mono">Date of Reg</strong>
-                      <span className="font-medium font-mono text-sm">Mar 27, 2019</span>
+                      <span className="font-medium font-mono text-sm text-secondary">Mar 27, 2019</span>
                     </p>
-                    <p className="text-slate-600 flex justify-between items-center pt-1">
+                    <p className="text-gray-600 flex justify-between items-center pt-1">
                       <strong className="text-secondary text-sm uppercase tracking-wider font-mono">Status</strong>
                       <span className="font-mono bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200 text-sm font-bold text-emerald-700">ACTIVE</span>
                     </p>
@@ -108,7 +108,7 @@ const Verify = () => {
           </div>
 
           {/* SURCON Verification */}
-          <div className="reveal bg-slate-50 p-8 md:p-10 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-500 group relative overflow-hidden">
+          <div className="reveal bg-white p-8 md:p-10 rounded-3xl border border-gray-100 shadow-card hover:shadow-card-hover transition-all duration-500 hover:-translate-y-1 group relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-[40px] translate-x-1/2 -translate-y-1/2" />
 
             <div className="flex flex-col md:flex-row gap-8 items-start relative z-10">
@@ -117,21 +117,49 @@ const Verify = () => {
               </div>
               <div className="flex-1">
                 <h3 className="text-2xl font-display font-bold text-secondary mb-4">Surveyors Council of Nigeria (SURCON)</h3>
-                <p className="text-slate-600 leading-relaxed mb-6 max-w-prose">
-                  Our principal surveyor is fully registered and licensed to practice in Nigeria. We adhere strictly to the professional code of ethics and regulatory standards set by SURCON.
+                <p className="text-gray-600 leading-relaxed mb-6 max-w-prose">
+                  In accordance with the Surveyors Registration Council of Nigeria Act (Cap S18 LFN 2004), all cadastral and engineering survey operations at Sourceline Limited are directed, sealed, and lodged by our licensed Principal Surveyor.
                 </p>
+
+                <div className="bg-surface p-6 rounded-2xl mb-6 border border-gray-100 relative overflow-hidden shadow-soft">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary to-accent" />
+                  <div className="space-y-3">
+                    <p className="text-gray-600 flex justify-between items-center pb-2 border-b border-gray-100">
+                      <strong className="text-secondary text-sm uppercase tracking-wider font-mono">Principal Surveyor</strong>
+                      <span className="font-semibold font-mono text-sm text-secondary">Surv. Fajimi S. Adebayo, mnis</span>
+                    </p>
+                    <p className="text-gray-600 flex justify-between items-center pt-1">
+                      <strong className="text-secondary text-sm uppercase tracking-wider font-mono">SURCON Reg. Number</strong>
+                      <span className="font-mono bg-primary/10 px-3 py-1 rounded-md border border-primary/20 text-sm font-bold text-primary">SURCON No. 5073</span>
+                    </p>
+                    <p className="text-gray-600 flex justify-between items-center pt-3 border-t border-gray-100">
+                      <strong className="text-secondary text-sm uppercase tracking-wider font-mono">Professional Body</strong>
+                      <span className="font-medium font-mono text-sm text-secondary">Nigerian Institution of Surveyors (NIS)</span>
+                    </p>
+                    <p className="text-gray-600 flex justify-between items-center pt-1">
+                      <strong className="text-secondary text-sm uppercase tracking-wider font-mono">Licensing Status</strong>
+                      <span className="font-mono bg-emerald-50 px-3 py-1 rounded-md border border-emerald-200 text-sm font-bold text-emerald-700">CURRENT & IN GOOD STANDING</span>
+                    </p>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-3 mb-6 p-4 bg-emerald-50 text-emerald-800 rounded-2xl border border-emerald-200 shadow-sm">
                   <CheckCircle className="h-5 w-5 shrink-0" />
-                  <span className="font-mono font-medium text-sm">All our survey plans are fully lodged, signed, and stamped by our registered statutory surveyor.</span>
+                  <span className="font-mono font-medium text-sm">Every boundary survey plan issued is officially sealed with registered pillars and submitted for record copy lodgment with the Office of the State Surveyor-General.</span>
                 </div>
-                <a
-                  href="https://surcon.gov.ng/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary hover:text-primary-dark transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
-                >
-                  Visit SURCON Website <ExternalLink className="h-4 w-4" />
-                </a>
+
+                <div className="flex flex-wrap items-center gap-4">
+                  <a
+                    href="https://surcon.gov.ng/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-primary hover:text-primary-dark transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+                  >
+                    SURCON Official Portal <ExternalLink className="h-4 w-4" />
+                  </a>
+                  <span className="text-gray-300">|</span>
+                  <span className="text-xs text-gray-500 font-medium">Verify under Surveyors Register using Reg. No. 5073</span>
+                </div>
               </div>
             </div>
           </div>
@@ -146,9 +174,9 @@ const Verify = () => {
                 <Shield className="h-8 w-8 text-primary" />
               </div>
               <div className="flex-1">
-                <h3 className="text-2xl font-display font-bold text-white mb-4">Official Bank Account</h3>
+                <h3 className="text-2xl font-display font-bold text-white mb-4">Official Bank Account & Anti-Fraud Policy</h3>
                 <p className="text-white/60 mb-8 leading-relaxed">
-                  To prevent fraud, please note that all payments to Sourceline Limited are made <strong className="text-white bg-primary/20 px-2 py-0.5 rounded">ONLY</strong> to our official corporate account. We will never ask you to pay into a personal or third-party account.
+                  In strict compliance with professional financial integrity, all professional fees payable to Sourceline Limited are transacted <strong className="text-white bg-primary/20 px-2 py-0.5 rounded">ONLY</strong> through our official corporate bank account. We do not solicit nor accept payments into personal or non-corporate accounts.
                 </p>
 
                 <div className="bg-white/5 backdrop-blur-md p-6 rounded-2xl border border-white/10">
@@ -157,7 +185,7 @@ const Verify = () => {
                       <ShieldCheck className="h-5 w-5 text-primary" />
                     </div>
                     <p className="text-white/80 text-sm font-medium leading-relaxed">
-                      Official bank account details are provided securely on official invoices only.
+                      Official verified bank account details are generated on formal letterhead invoices with statutory payment references.
                     </p>
                   </div>
                 </div>
@@ -174,12 +202,12 @@ const Verify = () => {
                 <MapPin className="h-8 w-8 text-primary group-hover:text-white transition-colors" />
               </div>
               <div className="flex-1 w-full">
-                <h3 className="text-2xl font-display font-bold text-secondary mb-4">Physical Office Verification</h3>
+                <h3 className="text-2xl font-display font-bold text-secondary mb-4">Registered Office Verification</h3>
                 <p className="text-gray-500 leading-relaxed mb-6">
-                  Visit us at our registered office address. We encourage clients to schedule a visit to verify our physical presence and meet the team.
+                  We maintain open transparency. Clients and partners are welcome to visit our registered operational office to inspect documentation, discuss survey briefs, and meet with our technical team.
                 </p>
                 <div className="bg-gray-50 p-6 rounded-2xl mb-6 border border-gray-100">
-                  <p className="text-secondary font-medium">SOURCELINE LTD, Crown Court Terrace Vintage Estate, behind Mobil petrol station, Sangotedo.</p>
+                  <p className="text-secondary font-medium">SOURCELINE LTD, Crown Court Terrace Vintage Estate, behind Mobil petrol station, Sangotedo, Lagos State.</p>
                 </div>
 
                 {/* Embedded Map */}
@@ -195,6 +223,36 @@ const Verify = () => {
                     title="Sourceline Limited Location"
                   ></iframe>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ─── INSTITUTIONAL CONSULTATION CALLOUT (Closing Conversion Section) ─── */}
+          <div className="reveal bg-gradient-to-br from-secondary via-secondary to-secondary-light p-8 md:p-12 rounded-3xl text-white relative overflow-hidden shadow-xl">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[60px] translate-x-1/3 -translate-y-1/3" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
+              <div className="max-w-xl">
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary mb-2 block">Professional Engagement</span>
+                <h3 className="text-2xl md:text-3xl font-display font-bold text-white mb-3">Engage a Verified, Registered Practice</h3>
+                <p className="text-white/60 text-sm leading-relaxed">
+                  Ensure your land assets, engineering layouts, and title documentation are backed by statutory SURCON compliance. Verify your parcel boundaries or consult with our Principal Surveyor directly.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 shrink-0 w-full md:w-auto">
+                <a
+                  href="/contact"
+                  className="bg-primary text-white px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow flex items-center justify-center gap-2"
+                >
+                  Verify Your Land
+                </a>
+                <a
+                  href="https://wa.me/2348034618227?text=Hello%20Sourceline%20Limited,%20I%20reviewed%20your%20verification%20credentials%20and%20would%20like%20to%20consult%20on%20a%20survey%20project."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20"
+                >
+                  Consult on WhatsApp
+                </a>
               </div>
             </div>
           </div>

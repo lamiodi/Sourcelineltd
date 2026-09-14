@@ -89,25 +89,34 @@ const Home = () => {
 
   useEffect(() => {
     if (isHeroPaused) return;
-    const t = setInterval(() => setCurrentHeroSlide(p => (p + 1) % heroCarouselImages.length), 5000);
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      setCurrentHeroSlide(p => (p + 1) % heroCarouselImages.length);
+    }, 6000);
     return () => clearInterval(t);
   }, [heroCarouselImages.length, isHeroPaused]);
 
   useEffect(() => {
-    const t = setInterval(() => setMissionSlide(p => (p + 1) % missionImages.length), 5000);
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      setMissionSlide(p => (p + 1) % missionImages.length);
+    }, 6000);
     return () => clearInterval(t);
   }, [missionImages.length]);
 
   useEffect(() => {
-    const t = setInterval(() => setAboutSlide(p => (p + 1) % aboutCarouselImages.length), 4500);
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      setAboutSlide(p => (p + 1) % aboutCarouselImages.length);
+    }, 5500);
     return () => clearInterval(t);
   }, [aboutCarouselImages.length]);
 
   const stats = [
-    { value: '10+', label: 'Years Experience', icon: Clock },
-    { value: '200+', label: 'Projects Completed', icon: TrendingUp },
-    { value: '100%', label: 'SURCON Registered', icon: Award },
-    { value: '100%', label: 'Client Satisfaction', icon: Users },
+    { value: '10+', label: 'Years Field Practice', icon: Clock },
+    { value: '200+', label: 'Completed Surveys', icon: TrendingUp },
+    { value: '100%', label: 'Statutory Lodged', icon: ShieldCheck },
+    { value: '0', label: 'Boundary Disputes', icon: Award },
   ];
 
   const values = [
@@ -171,6 +180,8 @@ const Home = () => {
               alt={`Hero Slide ${currentHeroSlide + 1}`}
               className="w-full h-full object-cover"
               loading={currentHeroSlide === 0 ? 'eager' : 'lazy'}
+              fetchPriority={currentHeroSlide === 0 ? 'high' : 'low'}
+              decoding="async"
             />
           </motion.div>
         </AnimatePresence>
@@ -199,21 +210,29 @@ const Home = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.6 }}
-              className="text-5xl sm:text-7xl md:text-8xl font-display font-bold text-white tracking-tight leading-[1.05] mb-8"
+              className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-bold text-white tracking-tight leading-[1.05] mb-8"
             >
-              Precision<br />
-              <span className="text-primary font-light italic">Defined.</span>
+              Statutory Surveying.<br />
+              <span className="text-primary font-light italic">Geospatial Precision.</span>
             </motion.h1>
 
-            {/* Description */}
-            <motion.p 
+            {/* Description & Client Guarantee */}
+            <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6, duration: 0.6 }}
-              className="text-base sm:text-lg text-white/60 max-w-lg leading-relaxed mb-12 font-light"
+              className="max-w-xl mb-10"
             >
-              Delivering SURCON-compliant surveys and geospatial data across Nigeria with uncompromising accuracy.
-            </motion.p>
+              <p className="text-base sm:text-lg text-white/90 leading-relaxed font-light mb-4">
+                Before you acquire, design, or build — verify your exact boundaries. We deliver registered cadastral survey plans, geodetic engineering control, and official Record Copy lodgments that permanently secure your land titles against boundary disputes and encroachment.
+              </p>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-white/10 border border-white/15 backdrop-blur-md">
+                <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
+                <span className="text-xs text-white/90 font-medium">
+                  Guaranteed statutory title protection under SURCON seal & lodgment
+                </span>
+              </div>
+            </motion.div>
           </div>
 
           {/* CTA Buttons */}
@@ -225,29 +244,31 @@ const Home = () => {
           >
             <Link
               to="/contact"
-              className="bg-primary text-white px-6 sm:px-10 py-5 rounded-2xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow hover:shadow-primary-glow-lg flex items-center justify-center gap-2.5 hover:-translate-y-1 group w-[85%] sm:w-auto whitespace-nowrap"
+              className="bg-primary text-white px-6 sm:px-10 py-4 sm:py-5 rounded-2xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow hover:shadow-primary-glow-lg flex items-center justify-center gap-2.5 hover:-translate-y-1 group w-[85%] sm:w-auto whitespace-nowrap"
             >
-              Request a Quote <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform shrink-0" />
+              Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform shrink-0" />
             </Link>
-            <Link
-              to="/services"
-              className="hidden sm:flex text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-full font-bold text-[10px] sm:text-xs uppercase tracking-[0.15em] border border-white/20 hover:bg-white/10 transition-all duration-300 items-center justify-center sm:w-auto whitespace-nowrap backdrop-blur-sm sm:backdrop-blur-none bg-white/5 sm:bg-transparent"
+            <a
+              href="https://wa.me/2348034618227?text=Hello%20Sourceline%20Limited,%20I%20would%20like%20to%20consult%20with%20your%20survey%20team%20regarding%20a%20property/project."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-2xl font-bold text-[11px] sm:text-xs uppercase tracking-[0.15em] border border-white/20 hover:bg-white/10 transition-all duration-300 items-center justify-center w-[85%] sm:w-auto whitespace-nowrap backdrop-blur-sm bg-white/5"
             >
-              Our Services
-            </Link>
+              Consult on WhatsApp
+            </a>
           </motion.div>
 
           {/* Minimal Trust Indicators */}
           <motion.div 
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
+            animate={{ opacity: 0.8 }}
             transition={{ delay: 1, duration: 0.8 }}
-            className="hidden sm:flex flex-wrap items-center gap-6 sm:gap-8 opacity-70"
+            className="hidden sm:flex flex-wrap items-center gap-6 sm:gap-8 opacity-80"
           >
-            {['SURCON Certified', '10+ Years Experience', 'Nationwide Reach'].map((item, i) => (
+            {['SURCON Sealed & Certified', 'Geodetic GNSS Accuracy', 'Surveyor-General Lodged'].map((item, i) => (
               <div key={i} className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
-                <span className="text-white text-[10px] sm:text-xs font-medium tracking-widest uppercase">{item}</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-white/80 text-[10px] sm:text-xs font-mono tracking-wider uppercase">{item}</span>
               </div>
             ))}
           </motion.div>
@@ -317,6 +338,8 @@ const Home = () => {
                 src="/images/20250516_130158.jpg.jpeg"
                 alt="Field Survey Work"
                 className="w-full h-full object-cover object-[25%_center]"
+                loading="lazy"
+                decoding="async"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-secondary/40 via-transparent to-transparent opacity-40" />
             </div>
@@ -475,7 +498,7 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16 reveal">
             <div>
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70 mb-3 block flex items-center gap-3" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70 mb-3 block flex items-center gap-3">
                 <span className="inline-block w-8 h-px bg-gradient-to-r from-primary to-accent" />
                 Recent Work
               </span>
@@ -505,6 +528,7 @@ const Home = () => {
                       alt={project.title}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full bg-white/5 flex items-center justify-center">
@@ -558,15 +582,20 @@ const Home = () => {
           {/* Row 1: About - Image Right */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 md:gap-16 items-center mb-16 md:mb-28">
             <div className="reveal-left text-center lg:text-left flex flex-col items-center lg:items-start">
-              <span className="section-label justify-center lg:justify-start">Excellence</span>
+              <span className="section-label justify-center lg:justify-start">Standards</span>
               <h2 className="text-4xl md:text-5xl font-display font-bold text-secondary mb-6 leading-tight mt-3">
-                Exceptional quality<br /> that can&apos;t be beaten
+                Statutory Standards &<br /> Geodetic Precision
               </h2>
               <p className="text-gray-500 text-lg leading-relaxed mb-6">
-                From boundary surveys to complex engineering projects, our team brings decades of combined experience. We don&apos;t just measure land: we provide data that secures your future.
+                From boundary surveys to complex engineering projects, all field operations and plan computations adhere strictly to statutory SURCON regulations and national geodetic controls.
               </p>
               <ul className="space-y-3 mb-8 w-full text-left inline-block lg:w-auto">
-                {['SURCON Certified Surveyors', 'Fully licensed professional team', 'Modern total station & GPS equipment', 'Available for interstate travel across Nigeria'].map((item, i) => (
+                {[
+                  'Statutory oversight under registered surveyor seal (SURCON & NIS compliant)',
+                  'Registered concrete beacons tied to national coordinate datum',
+                  'Calibrated high-precision GNSS RTK and Total Station instrumentation',
+                  'Mandatory Record Copy lodgment with the Office of the State Surveyor-General'
+                ].map((item, i) => (
                   <li key={i} className="flex items-center gap-3 text-gray-600 text-sm">
                     <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
                       <CheckCircle className="h-3.5 w-3.5 text-primary" />
@@ -671,7 +700,7 @@ const Home = () => {
                   to="/contact"
                   className="inline-flex items-center gap-2 bg-secondary text-white px-8 py-3.5 rounded-2xl font-bold text-sm uppercase tracking-wider hover:bg-secondary-light transition-all duration-300 hover:-translate-y-0.5 group"
                 >
-                  Request a Quote <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
             </div>
           </div>
@@ -683,10 +712,10 @@ const Home = () => {
         <div className="absolute inset-0 bg-mesh-gradient pointer-events-none" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           <div className="text-center mb-16 reveal">
-            <span className="section-label justify-center">Social Proof</span>
-            <h2 className="text-4xl font-display font-bold text-secondary mb-4 mt-3">What Our Clients Say</h2>
+            <span className="section-label justify-center">Client Commendations</span>
+            <h2 className="text-4xl font-display font-bold text-secondary mb-4 mt-3">Verified Practice Track Record</h2>
             <p className="text-gray-500 max-w-2xl mx-auto">
-              Don&apos;t just take our word for it. Here&apos;s what our satisfied clients have to say.
+              Read how our precision survey data, statutory lodgments, and geodetic compliance protect client investments across Nigeria.
             </p>
           </div>
 
@@ -828,6 +857,7 @@ const Home = () => {
                   alt={`Gallery ${idx + 1}`}
                   className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                   loading="lazy"
+                  decoding="async"
                 />
 
                 {/* Refined Instagram Style Overlay */}
@@ -841,6 +871,45 @@ const Home = () => {
               </a>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ─── INSTITUTIONAL CONSULTATION CTA SECTION ────────── */}
+      <section className="bg-secondary py-16 md:py-24 relative overflow-hidden text-white border-t border-white/5">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-primary/10 rounded-full blur-[100px] translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-x-1/3 translate-y-1/3 pointer-events-none" />
+        <div className="absolute inset-0 opacity-[0.015]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 reveal">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 mb-6">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-[11px] font-mono tracking-wider uppercase text-white/90">Direct Survey Consultation · Sangotedo, Lagos</span>
+          </div>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-display font-bold text-white mb-6 leading-tight">
+            Consult on Your Land or<br className="hidden sm:block" /> Engineering Project
+          </h2>
+          <p className="text-white/60 text-base sm:text-lg max-w-2xl mx-auto mb-10 font-light leading-relaxed">
+            Ensure your boundary definitions, estate layouts, and topographical datasets are executed under statutory surveyor oversight with certified lodgment.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <Link
+              to="/contact"
+              className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-2 group w-full sm:w-auto"
+            >
+              Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <a
+              href="https://wa.me/2348034618227?text=Hello%20Sourceline%20Limited,%20I%20would%20like%20to%20consult%20with%20your%20survey%20team%20regarding%20a%20property/project."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-wider transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 w-full sm:w-auto hover:-translate-y-0.5"
+            >
+              Consult on WhatsApp
+            </a>
+          </div>
+          <p className="text-[11px] text-white/40 mt-8 uppercase tracking-widest font-mono">
+            All professional fee assessments comply with the SURCON / NIS approved Scale of Fees
+          </p>
         </div>
       </section>
 

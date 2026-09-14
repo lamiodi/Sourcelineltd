@@ -263,10 +263,10 @@ export const team = [
   {
     id: 1,
     name: "Surv. Fajimi S. Adebayo",
-    position: "Principal Surveyor",
-    surcon_number: null,
+    position: "Principal Surveyor & Managing Director",
+    surcon_number: "SURCON Reg. No. 5073",
     image: "/images/20260205_104427.jpg.jpeg",
-    bio: "Over 20 years of experience in land surveying and geoinformatics. SURCON Registered and a Fellow of the Nigerian Institution of Surveyors."
+    bio: "Over 20 years of professional practice in land surveying and geoinformatics. SURCON Registered Surveyor (Reg. No. 5073) and Member of the Nigerian Institution of Surveyors (mnis)."
   },
   {
     id: 11,

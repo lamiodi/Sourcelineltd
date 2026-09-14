@@ -61,7 +61,7 @@ const Faq = () => {
     },
     {
       question: 'How big is your team?',
-      answer: 'Our team consists of over 20 professionals, including a SURCON-registered surveyor, GIS specialists, survey technologists, and field engineers.'
+      answer: 'Our professional practice operates under the direct supervision of Surv. Fajimi S. Adebayo (SURCON Reg. No. 5073, mnis), supported by experienced GIS analysts, certified survey technologists, and precision field crew.'
     },
     {
       question: 'Do you have case studies of past successful projects?',
@@ -69,7 +69,7 @@ const Faq = () => {
     },
     {
       question: 'Does Sourceline have a project minimum?',
-      answer: 'We handle projects of all sizes, from single plot boundary verifications to large estate layouts and engineering construction surveys. Contact us for a custom quote.'
+      answer: 'We handle projects of all scales, from single parcel boundary verifications to extensive residential estate layouts and engineering corridor surveys. Professional fees are structured strictly in accordance with the SURCON & NIS Scale of Minimum Professional Fees. Contact us to evaluate your project scope.'
     }
   ];
 

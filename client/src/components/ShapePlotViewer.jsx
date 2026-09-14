@@ -18,7 +18,8 @@ import {
   CaretRight,
   Crosshair,
   ArrowsOut,
-  Check
+  Check,
+  CheckCircle
 } from '@phosphor-icons/react';
 import {
   detectDuplicateCoordinates,
@@ -52,8 +53,8 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
   const [showGrid, setShowGrid] = useState(true);
   // labelMode: 'hidden' | 'short' | 'name' | 'code'
   const [labelMode, setLabelMode] = useState('hidden');
-  // northRotation: 270 (Estate Grid North 270°0') | 0 (Standard North Up) | 90 | 180
-  const [northRotation, setNorthRotation] = useState(270);
+  // northRotation: 0 (Standard True/Grid North Up) | 270 (Estate Grid West) | 90 | 180
+  const [northRotation, setNorthRotation] = useState(0);
   const [selectedArea, setSelectedArea] = useState('all');
   const [isolateArea, setIsolateArea] = useState(false);
   const [showHealthScan, setShowHealthScan] = useState(false);
@@ -207,6 +208,8 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
       }
     });
 
+    if (minE === Infinity || minN === Infinity) return null;
+
     const spanE = maxE - minE;
     const spanN = maxN - minN;
 
@@ -304,6 +307,14 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
         title: 'Suspected Inverted Coordinates (X/Y Swapped)',
         detail: inversionCheck.reason,
         action: onSwapCoordinates ? 'swap' : null
+      });
+    } else if (inversionCheck.isVerifiedValid) {
+      list.push({
+        type: 'verified',
+        severity: 'info',
+        title: '✓ Coordinates Verified (Easting X, Northing Y)',
+        detail: inversionCheck.reason,
+        action: null
       });
     }
 
@@ -481,6 +492,13 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
     }
   }, [selectedArea, areaGroups, stats, northRotation, projSpanW, projSpanH, baseScale]);
 
+  // Auto-fit camera view whenever points update, coordinates swap, or new file loads
+  useEffect(() => {
+    if (points && points.length > 0) {
+      handleFitView('all');
+    }
+  }, [points, handleFitView]);
+
   // Center & Focus on Single Survey Point
   const handleCenterOnPoint = useCallback((pt, targetZoom = 4.5) => {
     if (!pt || !stats) return;
@@ -520,9 +538,9 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
     handleFitView(code);
   };
 
-  // Cycle North Rotation: 270° -> 0° -> 90° -> 180° -> 270°
+  // Cycle North Rotation: 0° -> 90° -> 180° -> 270° -> 0°
   const handleCycleRotation = () => {
-    const sequence = [270, 0, 90, 180];
+    const sequence = [0, 90, 180, 270];
     const nextIdx = (sequence.indexOf(northRotation) + 1) % sequence.length;
     setNorthRotation(sequence[nextIdx]);
   };
@@ -1262,16 +1280,31 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
 
           <div className="flex items-center gap-2">
             {/* Setting-Out Health / Anomalies Alert Badge */}
-            {anomalies.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setShowHealthScan(!showHealthScan)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-semibold hover:bg-amber-500/25 transition cursor-pointer"
-              >
-                <Warning size={13} weight="fill" />
-                <span>{anomalies.length} Setting-Out Alert{anomalies.length > 1 ? 's' : ''}</span>
-              </button>
-            )}
+            {anomalies.length > 0 && (() => {
+              const warningCount = anomalies.filter((a) => a.severity === 'warning').length;
+              const isAllGood = warningCount === 0;
+              return (
+                <button
+                  type="button"
+                  onClick={() => setShowHealthScan(!showHealthScan)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+                    isAllGood
+                      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25'
+                      : 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25'
+                  }`}
+                  title={isAllGood ? 'Coordinates and survey geometry verified accurate' : 'Review geometry warnings'}
+                >
+                  {isAllGood ? (
+                    <CheckCircle size={13} weight="fill" className="text-emerald-400" />
+                  ) : (
+                    <Warning size={13} weight="fill" />
+                  )}
+                  <span>
+                    {isAllGood ? 'Coordinates Verified' : `${warningCount} Diagnostic Alert${warningCount > 1 ? 's' : ''}`}
+                  </span>
+                </button>
+              );
+            })()}
 
             {/* Fullscreen Expansion Toggle */}
             <button
@@ -1293,31 +1326,31 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
         {/* 2. TOOLBAR: North Orientation, Labels, Cadastral Ruler, Layers & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            {/* North 270°0' Orientation Selector */}
+            {/* North Orientation Selector */}
             <div className="inline-flex items-center rounded-lg bg-slate-800 p-0.5 border border-slate-700">
               <button
                 type="button"
-                onClick={() => setNorthRotation(270)}
+                onClick={() => setNorthRotation(0)}
                 className={`px-2.5 py-1.5 rounded text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                  northRotation === 270
+                  northRotation === 0
                     ? 'bg-sky-500 text-slate-950 shadow-xs'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                title="Reset layout to True North Up (0°) - Standard Survey Orientation"
+              >
+                <span>🧭 N 0° Up</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setNorthRotation(270)}
+                className={`px-2.5 py-1.5 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
+                  northRotation === 270
+                    ? 'bg-sky-500 text-slate-950 font-bold shadow-xs'
                     : 'text-slate-300 hover:text-white'
                 }`}
                 title="Rotate layout to Estate Grid North 270°0' (West / Left)"
               >
-                <span>🧭 North 270°0'</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setNorthRotation(0)}
-                className={`px-2.5 py-1.5 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
-                  northRotation === 0
-                    ? 'bg-sky-500 text-slate-950 font-bold shadow-xs'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-                title="Reset layout to True North Up (0°)"
-              >
-                <span>N 0° Up</span>
+                <span>North 270°</span>
               </button>
               <button
                 type="button"
@@ -1442,7 +1475,11 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
               <button
                 type="button"
                 onClick={onSwapCoordinates}
-                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 font-semibold text-xs transition border border-amber-500/40 cursor-pointer"
+                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-semibold text-xs transition border cursor-pointer ${
+                  anomalies.some((a) => a.type === 'inversion')
+                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40 animate-pulse'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                }`}
                 title="Swap Easting and Northing coordinates (X ⇄ Y)"
               >
                 <ArrowsLeftRight size={13} weight="bold" /> Swap X ⇄ Y
@@ -1477,41 +1514,61 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
       </div>
 
       {/* 3. SETTING-OUT ANOMALY SCAN ACCORDION (COLLAPSIBLE) */}
-      {showHealthScan && anomalies.length > 0 && (
-        <div className="p-3 bg-slate-950 rounded-xl border border-amber-500/30 text-xs space-y-2 shrink-0">
-          <div className="flex items-center justify-between text-amber-300 font-bold">
-            <span className="flex items-center gap-1.5">
-              <Warning size={15} weight="fill" /> Estate Geometry & Setting-Out Diagnostic
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowHealthScan(false)}
-              className="text-slate-400 hover:text-white text-[11px]"
-            >
-              <X size={14} />
-            </button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-            {anomalies.map((anom, aIdx) => (
-              <div key={aIdx} className="p-2 rounded-lg bg-slate-900 border border-slate-800 flex flex-col justify-between">
-                <div>
-                  <span className="font-semibold text-amber-200 block">{anom.title}</span>
-                  <span className="text-slate-400 block mt-0.5">{anom.detail}</span>
-                </div>
-                {anom.action === 'swap' && onSwapCoordinates && (
-                  <button
-                    type="button"
-                    onClick={onSwapCoordinates}
-                    className="mt-2 inline-flex items-center gap-1 self-start px-2 py-1 rounded bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 text-[10px] font-bold border border-amber-500/40 cursor-pointer transition"
-                  >
-                    <ArrowsLeftRight size={12} weight="bold" /> Swap Coordinates Now
-                  </button>
+      {showHealthScan && anomalies.length > 0 && (() => {
+        const warningCount = anomalies.filter((a) => a.severity === 'warning').length;
+        const isAllGood = warningCount === 0;
+        return (
+          <div className={`p-3 bg-slate-950 rounded-xl border text-xs space-y-2 shrink-0 ${
+            isAllGood ? 'border-emerald-500/30' : 'border-amber-500/30'
+          }`}>
+            <div className={`flex items-center justify-between font-bold ${
+              isAllGood ? 'text-emerald-300' : 'text-amber-300'
+            }`}>
+              <span className="flex items-center gap-1.5">
+                {isAllGood ? (
+                  <CheckCircle size={15} weight="fill" className="text-emerald-400" />
+                ) : (
+                  <Warning size={15} weight="fill" />
                 )}
-              </div>
-            ))}
+                {isAllGood ? 'Cadastral Verification: 100% Sound & Accurate' : 'Estate Geometry & Setting-Out Diagnostic'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowHealthScan(false)}
+                className="text-slate-400 hover:text-white text-[11px] cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+              {anomalies.map((anom, aIdx) => {
+                const isVerified = anom.type === 'verified' || anom.severity === 'info';
+                return (
+                  <div key={aIdx} className={`p-2.5 rounded-lg border flex flex-col justify-between ${
+                    isVerified
+                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-100'
+                      : 'bg-slate-900 border-slate-800'
+                  }`}>
+                    <div>
+                      <span className={`font-semibold block ${isVerified ? 'text-emerald-300' : 'text-amber-200'}`}>{anom.title}</span>
+                      <span className={`block mt-1 leading-relaxed ${isVerified ? 'text-emerald-200/90' : 'text-slate-400'}`}>{anom.detail}</span>
+                    </div>
+                    {anom.action === 'swap' && onSwapCoordinates && (
+                      <button
+                        type="button"
+                        onClick={onSwapCoordinates}
+                        className="mt-2 inline-flex items-center gap-1 self-start px-2.5 py-1 rounded bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 text-[10px] font-bold border border-amber-500/40 cursor-pointer transition"
+                      >
+                        <ArrowsLeftRight size={12} weight="bold" /> Swap Coordinates Now
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* 4. MAIN RESPONSIVE CANVAS VIEWPORT */}
       <div
@@ -1531,6 +1588,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onTouchCancel={handleTouchEnd}
+          onDoubleClick={() => handleFitView('all')}
           style={{
             width: viewportSize.width,
             height: viewportSize.height,
@@ -1549,21 +1607,11 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
 
         {/* FLOATING CAD CONTROLS (BOTTOM-RIGHT) */}
         <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 z-20">
-          <div className="bg-slate-900/90 backdrop-blur-md rounded-xl p-1 border border-slate-700/80 shadow-2xl flex flex-col gap-1">
+          <div className="bg-slate-900/95 backdrop-blur-md rounded-xl p-1 border border-slate-700/80 shadow-2xl flex flex-col gap-1 items-center">
             <button
               type="button"
               onClick={() => {
-                const centerMx = viewportSize.width / 2;
-                const centerMy = viewportSize.height / 2;
-                setZoom((prevZoom) => {
-                  const nextZoom = Math.min(prevZoom * 1.25, 50);
-                  const factor = nextZoom / prevZoom;
-                  setPan((prevPan) => ({
-                    x: centerMx - viewportSize.width / 2 - (centerMx - viewportSize.width / 2 - prevPan.x) * factor,
-                    y: centerMy - viewportSize.height / 2 - (centerMy - viewportSize.height / 2 - prevPan.y) * factor
-                  }));
-                  return nextZoom;
-                });
+                setZoom((prevZoom) => Math.min(prevZoom * 1.25, 50));
               }}
               className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-slate-200 hover:text-white hover:bg-slate-700/80 active:bg-blue-600 rounded-lg transition text-base font-bold cursor-pointer"
               title="Zoom In (+)"
@@ -1574,17 +1622,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
             <button
               type="button"
               onClick={() => {
-                const centerMx = viewportSize.width / 2;
-                const centerMy = viewportSize.height / 2;
-                setZoom((prevZoom) => {
-                  const nextZoom = Math.max(prevZoom * 0.8, 0.15);
-                  const factor = nextZoom / prevZoom;
-                  setPan((prevPan) => ({
-                    x: centerMx - viewportSize.width / 2 - (centerMx - viewportSize.width / 2 - prevPan.x) * factor,
-                    y: centerMy - viewportSize.height / 2 - (centerMy - viewportSize.height / 2 - prevPan.y) * factor
-                  }));
-                  return nextZoom;
-                });
+                setZoom((prevZoom) => Math.max(prevZoom * 0.8, 0.15));
               }}
               className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-slate-200 hover:text-white hover:bg-slate-700/80 active:bg-blue-600 rounded-lg transition text-base font-bold cursor-pointer"
               title="Zoom Out (-)"
@@ -1594,9 +1632,20 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
             </button>
             <button
               type="button"
-              onClick={() => handleFitView()}
+              onClick={() => {
+                setZoom(1.0);
+                setPan({ x: 0, y: 0 });
+              }}
+              className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-300 hover:text-white rounded hover:bg-slate-700/80 transition text-center cursor-pointer"
+              title="Reset Zoom to 100%"
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              onClick={() => handleFitView('all')}
               className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-sky-400 hover:text-sky-300 hover:bg-slate-700/80 active:bg-blue-600 rounded-lg transition text-[10px] font-bold uppercase cursor-pointer"
-              title="Fit Plot to Viewport"
+              title="Fit All Points to Viewport (Zoom Extents / Double-Click Canvas)"
               aria-label="Fit View"
             >
               <ArrowsOut size={15} weight="bold" />

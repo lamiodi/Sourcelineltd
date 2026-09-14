@@ -10,11 +10,18 @@ const Navbar = () => {
   const location = useLocation();
 
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      setIsScrolled(scrollY > 20);
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollProgress(docHeight > 0 ? (scrollY / docHeight) * 100 : 0);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollY = window.scrollY;
+          setIsScrolled(scrollY > 20);
+          const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+          setScrollProgress(docHeight > 0 ? (scrollY / docHeight) * 100 : 0);
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -34,9 +41,8 @@ const Navbar = () => {
     { name: 'About', path: '/about' },
     { name: 'Services', path: '/services' },
     { name: 'Portfolio', path: '/portfolio' },
+    { name: 'Verify', path: '/verify' },
     { name: 'Blog', path: '/blog' },
-    { name: 'Point Converter', path: '/point-converter' },
-    { name: 'Request a Quote', path: '/contact' },
   ];
 
   const isActive = (path) => {
@@ -97,13 +103,9 @@ const Navbar = () => {
                   key={link.name}
                   to={link.path}
                   className={`relative text-[13px] font-semibold tracking-wide transition-colors duration-300 px-4 py-2 rounded-xl group ${
-                    link.name === 'Request a Quote'
-                      ? isScrolled 
-                        ? 'text-accent font-bold drop-shadow-[0_0_6px_rgba(255,215,0,0.4)]' 
-                        : 'text-[#FFD700] font-bold drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]'
-                      : isActive(link.path)
-                        ? isScrolled ? 'text-primary' : 'text-white'
-                        : isScrolled ? 'text-secondary/60 hover:text-secondary hover:bg-gray-50' : 'text-white/70 hover:text-white hover:bg-white/10'
+                    isActive(link.path)
+                      ? isScrolled ? 'text-primary' : 'text-white'
+                      : isScrolled ? 'text-secondary/60 hover:text-secondary hover:bg-gray-50' : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}
                   {...(isActive(link.path) ? { 'aria-current': 'page' } : {})}
                 >
@@ -135,7 +137,7 @@ const Navbar = () => {
                 to="/contact"
                 className="bg-primary text-white px-6 py-2.5 rounded-xl text-[13px] font-bold uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-2"
               >
-                Get a Quote
+                Verify Your Land
                 <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -144,9 +146,9 @@ const Navbar = () => {
             <div className="lg:hidden flex items-center gap-3">
               <Link
                 to="/contact"
-                className="bg-primary text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider shadow-primary-glow"
+                className="bg-primary text-white px-3.5 py-2 rounded-xl text-[11px] font-bold uppercase tracking-wider shadow-primary-glow"
               >
-                Quote
+                Verify Land
               </Link>
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -212,11 +214,9 @@ const Navbar = () => {
               key={link.name}
               to={link.path}
               className={`relative z-10 flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold tracking-wide transition-colors duration-200 group cursor-pointer ${
-                link.name === 'Request a Quote'
-                  ? 'text-accent bg-accent/10 hover:bg-accent/20 drop-shadow-[0_0_2px_rgba(234,179,8,0.3)]'
-                  : isActive(link.path)
-                    ? 'bg-primary text-white shadow-primary-glow'
-                    : 'text-secondary/70 hover:text-secondary hover:bg-gray-50'
+                isActive(link.path)
+                  ? 'bg-primary text-white shadow-primary-glow'
+                  : 'text-secondary/70 hover:text-secondary hover:bg-gray-50'
               }`}
               onClick={() => setIsOpen(false)}
               {...(isActive(link.path) ? { 'aria-current': 'page' } : {})}
@@ -225,9 +225,7 @@ const Navbar = () => {
               {isActive(link.path) ? (
                 <div className="w-1.5 h-1.5 rounded-full bg-white" />
               ) : (
-                <ArrowRight className={`h-3.5 w-3.5 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all ${
-                  link.name === 'Request a Quote' ? 'text-accent' : 'text-primary'
-                }`} />
+                <ArrowRight className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 -translate-x-2 group-hover:translate-x-0 transition-all text-primary" />
               )}
             </Link>
           ))}

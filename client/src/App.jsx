@@ -1,7 +1,6 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate, Link } from 'react-router-dom';
 import Layout from './layout/Layout';
-import Home from './pages/Home';
 import Preloader from './components/Preloader';
 import { 
   ChatTeardropText, 
@@ -15,6 +14,7 @@ import {
 import './App.css';
 
 // Lazy-loaded routes to optimize production bundle size
+const Home = lazy(() => import('./pages/Home'));
 const About = lazy(() => import('./pages/About'));
 const Services = lazy(() => import('./pages/Services'));
 const ServiceDetail = lazy(() => import('./pages/ServiceDetail'));

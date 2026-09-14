@@ -14,24 +14,24 @@ const About = () => {
   useScrollReveal();
 
   const values = [
-    { icon: ShieldCheck, title: 'Integrity', desc: 'We adhere to the highest ethical standards in all our dealings, ensuring transparent and honest consultancy.' },
-    { icon: Ruler, title: 'Precision', desc: 'Accuracy is not just a goal, it is our guarantee. We use modern instruments for millimeter-level results.' },
-    { icon: Map, title: 'Innovation', desc: 'We leverage modern GIS, drone, and digital technologies to deliver results that exceed expectations.' }
+    { icon: ShieldCheck, title: 'Integrity', desc: 'We adhere strictly to the SURCON Code of Ethics and professional surveying regulations, ensuring transparent, legally compliant consultancy.' },
+    { icon: Ruler, title: 'Precision', desc: 'Accuracy is grounded in geodetic science. We deploy dual-frequency GNSS and calibrated total stations to achieve rigorous first-order survey closures.' },
+    { icon: Map, title: 'Innovation', desc: 'We leverage modern GIS, aerial photogrammetry, and spatial analytics to deliver authoritative data that supports major capital investments.' }
   ];
 
   const milestones = [
-    { year: '2015 - 2018', event: 'Initial professional experience gained by our founder in precision surveying and geospatial mapping before officially incorporating the firm.' },
-    { year: '2019', event: 'Founded on March 27, 2019 by Surv. Fajimi S. Adebayo in Lagos, Nigeria with a vision for precision surveying.' },
-    { year: '2020 - 2021', event: 'Launched GIS and digital mapping services, integrating drone technology into our workflow.' },
-    { year: '2022 - 2023', event: 'Expanded core operations to include major residential estate developments across the Lekki-Epe corridor.' },
-    { year: '2024 - 2026', event: 'Marked 200+ completed projects milestone with 100% client satisfaction and SURCON compliance.' },
+    { year: '2015 - 2018', event: 'Initial professional field operations in precision cadastral surveying and engineering control before corporate incorporation.' },
+    { year: '2019', event: 'Incorporated on March 27, 2019 as Sourceline Limited (RC - 1572232) under CAMA, practicing under the statutory direction of Surv. Fajimi S. Adebayo (SURCON No. 5073, mnis).' },
+    { year: '2020 - 2021', event: 'Expanded into large-scale geodetic control and digital terrain modeling for civil engineering and real estate developments.' },
+    { year: '2022 - 2023', event: 'Completed major cadastral layout surveys and boundary demarcations along the rapidly developing Lekki-Epe economic corridor.' },
+    { year: '2024 - 2026', event: 'Surpassed 200+ statutory survey projects and record copy lodgments with total regulatory compliance across Lagos and neighbouring states.' },
   ];
 
   return (
     <div className="font-sans">
       <SEO
         title="About Us"
-        description="Learn about Sourceline Limited, our mission, vision, and the experienced survey team led by our SURCON-registered Principal Surveyor, dedicated to precision and integrity in Lagos, Nigeria."
+        description="Learn about Sourceline Limited (RC-1572232) and the professional surveying practice supervised by Surv. Fajimi S. Adebayo (SURCON Reg. No. 5073, mnis) in Lagos, Nigeria."
       />
 
       {/* ─── PAGE HERO ───────────────────────────────────────── */}
@@ -105,7 +105,7 @@ const About = () => {
             <div className="reveal bg-secondary p-10 md:p-12 rounded-3xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-[200px] h-[200px] bg-primary/10 rounded-full blur-[60px] translate-x-1/3 -translate-y-1/3 pointer-events-none" />
               <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-accent rounded-l-3xl" />
-              <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70 mb-3 block flex items-center gap-3" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70 mb-3 block flex items-center gap-3">
                 <span className="inline-block w-6 h-px bg-gradient-to-r from-primary to-accent" />
                 Our Vision
               </span>
@@ -176,8 +176,8 @@ const About = () => {
                     <Award className="h-6 w-6 text-white" />
                   </div>
                   <div>
-                    <p className="font-bold text-secondary text-sm">SURCON Licensed</p>
-                    <p className="text-gray-400 text-xs text-primary font-medium">Registered Surveyor</p>
+                    <p className="font-bold text-secondary text-sm">SURCON No. 5073</p>
+                    <p className="text-gray-400 text-xs text-primary font-medium">Surv. Fajimi S. Adebayo, mnis</p>
                   </div>
                 </div>
               </div>
@@ -186,29 +186,29 @@ const About = () => {
             <div className="reveal-right text-center lg:text-left flex flex-col items-center lg:items-start">
               <span className="section-label justify-center lg:justify-start">Leadership</span>
               <h2 className="text-4xl md:text-5xl font-display font-bold text-secondary mb-6 mt-3 leading-tight">
-                Our Founder:<br /> <span className="text-secondary opacity-90">Surv. Fajimi S. Adebayo</span>
+                Principal Surveyor:<br /> <span className="text-secondary opacity-90">Surv. Fajimi S. Adebayo, mnis</span>
               </h2>
               <div className="prose prose-lg text-slate-600 mb-8 max-w-prose">
                 <p>
-                  A visionary leader with a passion for precision and excellence. With over 10 years of experience in the land surveying and geoinformatics industry, he has steered Sourceline Limited to become a household name in accurate measurement and spatial data solutions.
+                  Principal Surveyor and Managing Director of Sourceline Limited. Registered with the Surveyors Council of Nigeria (SURCON Reg. No. 5073) and a corporate member of the Nigerian Institution of Surveyors (mnis), he exercises statutory oversight over all boundary surveys, cadastral beaconing, and geoinformatics consultancy.
                 </p>
                 <p className="mt-4">
-                  His commitment to professional ethics and adoption of modern technology ensures that every project meets global standards. He believes in a client-first approach, ensuring that every survey tells the true story of the land.
+                  Operating with strict adherence to the SURCON Code of Professional Ethics, all survey plans executed under his supervision are tied to statutory geodetic control networks and formally lodged with the relevant State Cadastral Archives.
                 </p>
               </div>
 
               <div className="grid grid-cols-3 gap-2 md:gap-4 w-full">
                 <div className="bg-gray-50 rounded-xl md:rounded-2xl px-2 py-3 md:px-6 md:py-4 text-center hover:bg-gray-100 transition-colors group">
-                  <div className="font-display font-bold text-lg md:text-2xl text-secondary group-hover:text-primary transition-colors leading-none">10+</div>
-                  <div className="text-gray-400 text-[10px] md:text-xs font-medium mt-1 leading-tight">Years Experience</div>
+                  <div className="font-display font-bold text-lg md:text-2xl text-secondary group-hover:text-primary transition-colors leading-none">20+</div>
+                  <div className="text-gray-400 text-[10px] md:text-xs font-medium mt-1 leading-tight">Years Practice</div>
                 </div>
                 <div className="bg-gray-50 rounded-xl md:rounded-2xl px-2 py-3 md:px-6 md:py-4 text-center hover:bg-gray-100 transition-colors group">
                   <div className="font-display font-bold text-lg md:text-2xl text-secondary group-hover:text-primary transition-colors leading-none">200+</div>
                   <div className="text-gray-400 text-[10px] md:text-xs font-medium mt-1 leading-tight">Projects Led</div>
                 </div>
                 <div className="bg-primary/10 border border-primary/20 rounded-xl md:rounded-2xl px-2 py-3 md:px-6 md:py-4 text-center hover:bg-primary/15 transition-colors">
-                  <div className="font-display font-bold text-lg md:text-2xl text-primary leading-none">SURCON</div>
-                  <div className="text-gray-400 text-[10px] md:text-xs font-medium mt-1 leading-tight">Certified</div>
+                  <div className="font-display font-bold text-lg md:text-2xl text-primary leading-none">mnis</div>
+                  <div className="text-gray-400 text-[10px] md:text-xs font-medium mt-1 leading-tight">NIS Member</div>
                 </div>
               </div>
             </div>
@@ -230,17 +230,17 @@ const About = () => {
                   <div className="w-8 h-8 md:w-10 md:h-10 bg-primary rounded-xl flex items-center justify-center">
                     <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-white" />
                   </div>
-                  <h2 className="text-2xl md:text-3xl font-display font-bold">Registered & Certified</h2>
+                  <h2 className="text-2xl md:text-3xl font-display font-bold">Incorporated & Statutory Licensed</h2>
                 </div>
                 <p className="text-white/60 text-base md:text-lg max-w-lg">
-                  Sourceline Limited is a fully registered entity with the Corporate Affairs Commission of Nigeria, operating under all applicable professional guidelines.
+                  Sourceline Limited was incorporated on March 27, 2019 under the Companies and Allied Matters Act (RC - 1572232). All survey deliverables are certified under statutory SURCON licensing.
                 </p>
               </div>
               <div className="bg-white/10 backdrop-blur-sm p-5 md:p-8 rounded-2xl border border-white/20 text-center w-full md:min-w-[200px] md:w-auto shrink-0 hover:bg-white/15 transition-colors">
-                <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>RC Number</p>
-                <p className="text-3xl md:text-4xl font-display font-bold text-white">Verified</p>
+                <p className="text-[10px] md:text-xs font-bold uppercase tracking-[0.2em] text-primary mb-2">RC - 1572232</p>
+                <p className="text-2xl md:text-3xl font-display font-bold text-white">Mar 27, 2019</p>
                 <Link to="/verify" className="mt-4 inline-flex items-center gap-1 text-white/50 hover:text-primary text-[10px] md:text-xs transition-colors font-medium group">
-                  Verify Now <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                  Verify Credentials <ArrowRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </div>
             </div>
@@ -341,14 +341,14 @@ const About = () => {
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70 mb-4 block" style={{ fontFamily: 'Inter, sans-serif' }}>Work With Us</span>
           <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-6">Ready to start your project?</h2>
           <p className="text-white/60 max-w-2xl mx-auto mb-10 text-lg leading-relaxed">
-            Contact us today to discuss your specific project requirements. We are ready to provide expert consultation and a tailored quote.
+            Contact us today to discuss your specific project requirements. We are ready to provide expert consultation, site evaluation, and statutory fee assessment based on the NIS/SURCON scale.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center w-full">
             <Link
                 to="/contact"
                 className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 group w-full sm:w-[240px]"
               >
-                Request a Quote <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
               </Link>
             <Link
               to="/services"

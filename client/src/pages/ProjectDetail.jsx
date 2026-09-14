@@ -299,13 +299,13 @@ const ProjectDetail = () => {
                                 <div className="relative z-10">
                                     <h3 className="text-xl font-display font-bold text-white mb-3">Have a similar project?</h3>
                                     <p className="text-white/50 text-sm leading-relaxed mb-6">
-                                        Contact us to discuss your surveying requirements. We deliver accurate results on time.
+                                        Contact our survey practice to discuss your project requirements. We deliver geodetically verified surveys in full compliance with Nigerian survey regulations.
                                     </p>
                                     <Link
                                         to="/contact"
                                         className="flex items-center justify-between w-full bg-primary text-white px-6 py-4 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 group"
                                     >
-                                        <span>Get a Quote</span>
+                                        <span>Verify Your Land</span>
                                         <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                                     </Link>
                                 </div>

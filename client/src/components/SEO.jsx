@@ -2,7 +2,7 @@ import { Helmet } from 'react-helmet-async';
 
 const SEO = ({ title, description, keywords, image, url }) => {
   const siteTitle = 'Sourceline Limited';
-  const siteDescription = 'Precision Land Surveying and Geoinformatics Services in Nigeria. Registered with SURCON.';
+  const siteDescription = 'Professional Land Surveying & Geoinformatics in Nigeria. Practicing under statutory SURCON licensing (Reg. No. 5073) and CAMA incorporation (RC-1572232).';
   const siteUrl = 'https://www.sourcelineltd.com';
   const siteImage = '/images/companylogo.jpeg';
 

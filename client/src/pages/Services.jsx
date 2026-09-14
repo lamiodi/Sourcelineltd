@@ -195,14 +195,14 @@ const Services = () => {
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70 mb-4 block" style={{ fontFamily: 'Inter, sans-serif' }}>Get Started</span>
           <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-6">Need a custom solution?</h2>
           <p className="text-white/60 max-w-2xl mx-auto mb-10 text-lg leading-relaxed">
-            Contact us today to discuss your specific project requirements. We are ready to provide expert consultation and a tailored quote.
+            Contact our practice today to discuss your specific surveying requirements. We provide expert technical consultation and transparent fee evaluation in compliance with the SURCON & NIS Scale of Fees.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center w-full">
             <Link
               to="/contact"
               className="bg-primary text-white px-8 py-4 rounded-2xl font-bold text-sm uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 group w-full sm:w-[240px]"
             >
-              Request a Quote <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/portfolio"

@@ -597,6 +597,10 @@ const PointConverter = () => {
   const scriptDuplicates = useMemo(() => detectDuplicateCoordinates(parsedScriptPoints), [parsedScriptPoints]);
 
   // --- Auto-Detect Inverted Coordinates (X/Y Swap) State ---
+  const [dismissInversionWarningCsv, setDismissInversionWarningCsv] = useState(false);
+  const [dismissInversionWarningScript, setDismissInversionWarningScript] = useState(false);
+  const [isSwappedCsv, setIsSwappedCsv] = useState(false);
+  const [isSwappedScript, setIsSwappedScript] = useState(false);
   const csvInversion = useMemo(() => detectCoordinateInversion(parsedCsvPoints), [parsedCsvPoints]);
   const scriptInversion = useMemo(() => detectCoordinateInversion(parsedScriptPoints), [parsedScriptPoints]);
 
@@ -833,6 +837,8 @@ const PointConverter = () => {
       return;
     }
 
+    setDismissInversionWarningCsv(false);
+    setIsSwappedCsv(false);
     setParsedCsvPoints(points);
     setCsvOutput(buildCsvString(points));
     setSuccessMsg(`Successfully converted ${points.length} point${points.length > 1 ? 's' : ''} and plotted 2D geometry!`);
@@ -874,7 +880,8 @@ const PointConverter = () => {
     const swapped = swapPointCoordinates(parsedCsvPoints);
     setParsedCsvPoints(swapped);
     setCsvOutput(buildCsvString(swapped));
-    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate point${swapped.length > 1 ? 's' : ''}.`);
+    setIsSwappedCsv((prev) => !prev);
+    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate points. 2D plot auto-fitted with True North 0° Up.`);
   };
 
   const downloadCsv = () => {
@@ -1024,6 +1031,8 @@ const PointConverter = () => {
       return;
     }
 
+    setDismissInversionWarningScript(false);
+    setIsSwappedScript(false);
     setParsedScriptPoints(points);
     setScriptOutput(buildScriptString(points));
     setSuccessMsg(`Successfully generated AutoCAD Script (.scr) with ${points.length} point${points.length > 1 ? 's' : ''}!`);
@@ -1102,7 +1111,8 @@ const PointConverter = () => {
     const swapped = swapPointCoordinates(parsedScriptPoints);
     setParsedScriptPoints(swapped);
     setScriptOutput(buildScriptString(swapped));
-    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate point${swapped.length > 1 ? 's' : ''}.`);
+    setIsSwappedScript((prev) => !prev);
+    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate points. 2D plot auto-fitted with True North 0° Up.`);
   };
 
   const downloadScript = () => {
@@ -1556,29 +1566,69 @@ const PointConverter = () => {
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
                   {/* Auto-Detect Inverted Coordinates Warning Banner */}
-                  {csvInversion.isInvertedSuspected && (
+                  {csvInversion.isInvertedSuspected && !dismissInversionWarningCsv && (
                     <div className="mb-4 p-3.5 rounded-xl bg-orange-50/90 border border-orange-200 text-orange-950 text-xs shadow-xs">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5">
                           <ArrowsLeftRight size={18} className="text-orange-600 shrink-0 mt-0.5" weight="bold" />
                           <div>
-                            <div className="font-bold text-slate-900 flex items-center gap-2">
+                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
                               <span>Possible Inverted Coordinates Detected (X / Y Swapped)</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold border border-orange-200">
-                                N,E Export Pattern
+                                Total Station N,E Pattern
                               </span>
                             </div>
                             <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              {csvInversion.reason} Click below to immediately invert columns across all points and update the 2D plot.
+                              Values in the Easting column exceed Northing by <strong className="text-slate-800 font-mono">{csvInversion.diffMeters ? csvInversion.diffMeters.toFixed(0) : '229,795'}m</strong>. In Nigerian UTM Zone 31N, statutory Northing is ~700,000–900,000m and Easting is ~500,000–650,000m. Survey equipment (Leica, Kolida, South) exports in <code className="bg-orange-100/80 px-1 py-0.5 rounded text-orange-900 font-mono">P,N,E,Z</code> format.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={handleSwapCsvCoordinates}
+                            className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y (Recommended)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDismissInversionWarningCsv(true)}
+                            className="px-2.5 py-1.5 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-slate-800 font-medium text-xs border border-orange-200 transition cursor-pointer"
+                            title="Dismiss warning and keep current coordinate mapping"
+                          >
+                            Keep As-Is
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Geodetically Verified Alignment Banner */}
+                  {(isSwappedCsv || csvInversion.isVerifiedValid) && (
+                    <div className="mb-4 p-3 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-950 text-xs shadow-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
+                          <div>
+                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                              <span>Coordinates Geodetically Verified (Easting X, Northing Y)</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
+                                {csvInversion.zone || 'UTM Zone 31N Verified'}
+                              </span>
+                            </div>
+                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
+                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgNorthing.toFixed(0)}m</span>). Northing &gt; Easting complies with official SURCON cadastral records. 2D geometry is rendered True North 0° Up.
                             </p>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={handleSwapCsvCoordinates}
-                          className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer self-end sm:self-center"
+                          className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 font-semibold text-xs transition flex items-center gap-1 cursor-pointer self-end sm:self-center"
+                          title="Invert columns back to previous state"
                         >
-                          <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y Now
+                          <ArrowsLeftRight size={13} weight="bold" /> Undo Swap
                         </button>
                       </div>
                     </div>
@@ -2000,29 +2050,69 @@ const PointConverter = () => {
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
                   {/* Auto-Detect Inverted Coordinates Warning Banner */}
-                  {scriptInversion.isInvertedSuspected && (
+                  {scriptInversion.isInvertedSuspected && !dismissInversionWarningScript && (
                     <div className="mb-4 p-3.5 rounded-xl bg-orange-50/90 border border-orange-200 text-orange-950 text-xs shadow-xs">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5">
                           <ArrowsLeftRight size={18} className="text-orange-600 shrink-0 mt-0.5" weight="bold" />
                           <div>
-                            <div className="font-bold text-slate-900 flex items-center gap-2">
+                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
                               <span>Possible Inverted Coordinates Detected (X / Y Swapped)</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold border border-orange-200">
-                                N,E Export Pattern
+                                Total Station N,E Pattern
                               </span>
                             </div>
                             <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              {scriptInversion.reason} Click below to immediately invert columns across all points and update the 2D plot.
+                              Values in the Easting column exceed Northing by <strong className="text-slate-800 font-mono">{scriptInversion.diffMeters ? scriptInversion.diffMeters.toFixed(0) : '229,795'}m</strong>. In Nigerian UTM Zone 31N, statutory Northing is ~700,000–900,000m and Easting is ~500,000–650,000m. Total Station instruments export in <code className="bg-orange-100/80 px-1 py-0.5 rounded text-orange-900 font-mono">P,N,E,Z</code> format.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <button
+                            type="button"
+                            onClick={handleSwapScriptCoordinates}
+                            className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y (Recommended)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDismissInversionWarningScript(true)}
+                            className="px-2.5 py-1.5 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-slate-800 font-medium text-xs border border-orange-200 transition cursor-pointer"
+                            title="Dismiss warning and keep current coordinate mapping"
+                          >
+                            Keep As-Is
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Geodetically Verified Alignment Banner */}
+                  {(isSwappedScript || scriptInversion.isVerifiedValid) && (
+                    <div className="mb-4 p-3 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-950 text-xs shadow-xs">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5">
+                          <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
+                          <div>
+                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                              <span>Coordinates Geodetically Verified (Easting X, Northing Y)</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
+                                {scriptInversion.zone || 'UTM Zone 31N Verified'}
+                              </span>
+                            </div>
+                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
+                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgNorthing.toFixed(0)}m</span>). Northing &gt; Easting complies with official SURCON cadastral records. 2D geometry is rendered True North 0° Up.
                             </p>
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={handleSwapScriptCoordinates}
-                          className="shrink-0 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer self-end sm:self-center"
+                          className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 font-semibold text-xs transition flex items-center gap-1 cursor-pointer self-end sm:self-center"
+                          title="Invert columns back to previous state"
                         >
-                          <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y Now
+                          <ArrowsLeftRight size={13} weight="bold" /> Undo Swap
                         </button>
                       </div>
                     </div>

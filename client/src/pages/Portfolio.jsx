@@ -489,15 +489,15 @@ const Portfolio = () => {
             Ready to add your estate to this list?
           </h2>
           <p className="cta-reveal text-white/40 max-w-2xl mx-auto mb-12 text-lg leading-relaxed font-light">
-            Whether you need a boundary survey for a single plot or a full estate layout for hundreds of plots, our team is ready.
-            Contact us today for a professional consultation.
+            Whether you need a boundary survey for a single parcel or comprehensive cadastral layout for a multi-hectare estate, our practice is ready.
+            Contact our registered surveying team for technical scope evaluation.
           </p>
           <div className="cta-reveal flex flex-col sm:flex-row gap-4 justify-center w-full">
             <Link
               to="/contact"
               className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-sm uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2.5 group w-full sm:w-[240px]"
             >
-              Get a Free Quote <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              Verify Your Land <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/services"

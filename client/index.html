@@ -16,12 +16,18 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="msapplication-TileColor" content="#000440" />
 
-  <!-- Preconnect for Google Fonts performance -->
+  <!-- DNS Prefetch and Preconnect for Google Fonts -->
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Julius+Sans+One&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Open+Sans:ital,wdth,wght@0,75..100,300..800;1,75..100,300..800&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap"
-    rel="stylesheet">
+    href="https://fonts.googleapis.com/css2?family=Julius+Sans+One&family=Open+Sans:wght@400;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Preload Critical Hero Image for Instant Mobile LCP -->
+  <link rel="preload" as="image" href="/images/dji_fly_20260128_125210_0_1769601130705_photo_low_quality.jpg.jpeg" fetchpriority="high" />
 
   <!-- Open Graph / WhatsApp / Facebook -->
   <meta property="og:type" content="website" />

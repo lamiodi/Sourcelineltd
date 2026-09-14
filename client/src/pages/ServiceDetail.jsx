@@ -146,13 +146,13 @@ const ServiceDetail = () => {
                   </div>
                   <h3 className="text-2xl font-display font-bold text-white mb-4">Start your project with us today</h3>
                   <p className="text-white/50 mb-8 text-sm leading-relaxed">
-                    Contact us to schedule a consultation. Our experts will review your requirements and provide a detailed timeline and quote.
+                    Contact us to schedule a technical consultation. Our registered surveyors will review your site specifications and provide a detailed timeline and statutory fee schedule.
                   </p>
                   <Link
                     to="/contact"
                     className="flex items-center justify-between w-full bg-primary text-white px-6 py-4 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow group"
                   >
-                    <span>Request a Quote</span>
+                    <span>Verify Your Land</span>
                     <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
                   </Link>
 

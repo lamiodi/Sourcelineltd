@@ -121,7 +121,7 @@ const DigitalMapping = () => {
               to="/contact"
               className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-sm uppercase tracking-wider hover:bg-primary-dark transition-all duration-300 shadow-primary-glow flex justify-center items-center gap-2 group"
             >
-              Request Quote <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
+              Verify Your Land <ArrowRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/services"
@@ -226,14 +226,14 @@ const DigitalMapping = () => {
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-primary/70 mb-4 block" style={{ fontFamily: 'Inter, sans-serif' }}>Get Started</span>
           <h2 className="text-4xl md:text-5xl font-display font-bold text-white mb-6">Need Digital Mapping Services?</h2>
           <p className="text-white/40 max-w-2xl mx-auto mb-10 text-lg leading-relaxed">
-            Get precise digital maps for your planning and development projects. Contact us today for professional mapping solutions.
+            Obtain geospatial data and GIS analytics for regional planning and engineering design. Contact our team to scope your spatial data requirements.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/contact"
               className="bg-primary text-white px-8 py-4 rounded-xl font-bold text-sm uppercase tracking-wider shadow-primary-glow hover:bg-primary-dark hover:shadow-primary-glow-lg hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 group"
             >
-              Get a Free Quote <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              Consult Survey Team <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Link>
           </div>
         </div>

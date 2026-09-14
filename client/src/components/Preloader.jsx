@@ -1,13 +1,27 @@
 import { useState, useEffect } from 'react';
 
 const Preloader = () => {
-  const [isVisible, setIsVisible] = useState(true);
+  // Check if user has already seen the preloader in this session
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return !sessionStorage.getItem('sl_intro_seen');
+    }
+    return true;
+  });
   const [displayedText, setDisplayedText] = useState('');
   
   const fullText = "Precise measurements with accuracy are our words...";
-  const typingSpeed = 50; // ms per character
 
   useEffect(() => {
+    if (!isVisible) return;
+
+    // Mark as seen for session so internal navigation is instant
+    sessionStorage.setItem('sl_intro_seen', 'true');
+
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const typingSpeed = isMobile ? 18 : 28; // Fast, snappy typing on mobile
+    const totalDuration = isMobile ? 1100 : 1600; // Snappy exit
+
     let i = 0;
     const typingInterval = setInterval(() => {
       if (i < fullText.length) {
@@ -20,18 +34,29 @@ const Preloader = () => {
 
     const timer = setTimeout(() => {
       setIsVisible(false);
-    }, 4000); // Adjusted to allow full typing animation + pause
+    }, totalDuration);
 
     return () => {
       clearInterval(typingInterval);
       clearTimeout(timer);
     };
-  }, []);
+  }, [isVisible]);
+
+  const dismissImmediately = () => {
+    setIsVisible(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('sl_intro_seen', 'true');
+    }
+  };
 
   if (!isVisible) return null;
 
   return (
-    <div className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white transition-opacity duration-500 ${!isVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+    <div 
+      onClick={dismissImmediately}
+      onTouchStart={dismissImmediately}
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-white cursor-pointer transition-opacity duration-500 ${!isVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+    >
       <div className="relative flex flex-col items-center animate-fade-in-up">
         {/* Glowing background effect */}
         <div className="absolute inset-0 bg-primary/20 blur-[50px] rounded-full" />
