@@ -212,8 +212,8 @@ const Home = () => {
               transition={{ delay: 0.4, duration: 0.6 }}
               className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-display font-bold text-white tracking-tight leading-[1.05] mb-8"
             >
-              Statutory Surveying.<br />
-              <span className="text-primary font-light italic">Geospatial Precision.</span>
+              Verify the Land.<br />
+              <span className="text-primary font-light italic">Protect Your Investment.</span>
             </motion.h1>
 
             {/* Description & Client Guarantee */}
@@ -224,7 +224,7 @@ const Home = () => {
               className="max-w-xl mb-10"
             >
               <p className="text-base sm:text-lg text-white/90 leading-relaxed font-light mb-0">
-                Before you acquire, design, or build — verify your exact boundaries. We deliver registered cadastral survey plans, geodetic engineering control, and official Record Copy lodgments that permanently secure your land titles against boundary disputes and encroachment.
+                Get registered survey plans and official Record Copies that protect your title from disputes, encroachment, and costly construction errors.
               </p>
             </motion.div>
           </div>
