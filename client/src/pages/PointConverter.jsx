@@ -1618,7 +1618,7 @@ const PointConverter = () => {
                               </span>
                             </div>
                             <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgNorthing.toFixed(0)}m</span>). Northing &gt; Easting complies with official SURCON cadastral records. 2D geometry is rendered True North 0° Up.
+                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgNorthing.toFixed(0)}m</span>). Northing &gt; Easting complies with official SURCON cadastral records. 2D geometry is rendered North 270° (Estate Grid).
                             </p>
                           </div>
                         </div>
@@ -2102,7 +2102,7 @@ const PointConverter = () => {
                               </span>
                             </div>
                             <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgNorthing.toFixed(0)}m</span>). Northing &gt; Easting complies with official SURCON cadastral records. 2D geometry is rendered True North 0° Up.
+                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgNorthing.toFixed(0)}m</span>). Northing &gt; Easting complies with official SURCON cadastral records. 2D geometry is rendered North 270° (Estate Grid).
                             </p>
                           </div>
                         </div>

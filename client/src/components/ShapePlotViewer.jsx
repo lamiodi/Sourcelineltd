@@ -53,8 +53,8 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
   const [showGrid, setShowGrid] = useState(true);
   // labelMode: 'hidden' | 'short' | 'name' | 'code'
   const [labelMode, setLabelMode] = useState('hidden');
-  // northRotation: 0 (Standard True/Grid North Up) | 270 (Estate Grid West) | 90 | 180
-  const [northRotation, setNorthRotation] = useState(0);
+  // northRotation: Locked strictly to 270° (Estate Grid West)
+  const northRotation = 270;
   const [selectedArea, setSelectedArea] = useState('all');
   const [isolateArea, setIsolateArea] = useState(false);
   const [showHealthScan, setShowHealthScan] = useState(false);
@@ -70,6 +70,12 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
   const [zoom, setZoom] = useState(1.0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+
+  // Synchronous transform ref to support smooth cursor-anchored zoom & wheel interaction
+  const transformRef = useRef({ zoom: 1.0, pan: { x: 0, y: 0 } });
+  useEffect(() => {
+    transformRef.current = { zoom, pan };
+  }, [zoom, pan]);
 
   // Pointer drag state ref for rock-solid interaction
   const pointerStateRef = useRef({
@@ -538,12 +544,38 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
     handleFitView(code);
   };
 
-  // Cycle North Rotation: 0° -> 90° -> 180° -> 270° -> 0°
-  const handleCycleRotation = () => {
-    const sequence = [0, 90, 180, 270];
-    const nextIdx = (sequence.indexOf(northRotation) + 1) % sequence.length;
-    setNorthRotation(sequence[nextIdx]);
-  };
+  // Zoom In / Out centered on screen center
+  const handleZoomIn = useCallback(() => {
+    setZoom((prevZoom) => {
+      const nextZoom = Math.min(prevZoom * 1.25, 50);
+      const factor = nextZoom / prevZoom;
+      setPan((prevPan) => {
+        const newPan = { x: prevPan.x * factor, y: prevPan.y * factor };
+        transformRef.current = { zoom: nextZoom, pan: newPan };
+        return newPan;
+      });
+      return nextZoom;
+    });
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setZoom((prevZoom) => {
+      const nextZoom = Math.max(prevZoom * 0.8, 0.15);
+      const factor = nextZoom / prevZoom;
+      setPan((prevPan) => {
+        const newPan = { x: prevPan.x * factor, y: prevPan.y * factor };
+        transformRef.current = { zoom: nextZoom, pan: newPan };
+        return newPan;
+      });
+      return nextZoom;
+    });
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setZoom(1.0);
+    setPan({ x: 0, y: 0 });
+    transformRef.current = { zoom: 1.0, pan: { x: 0, y: 0 } };
+  }, []);
 
   // --- Non-Passive Native Wheel Listener: Cursor-Anchored Zoom ---
   useEffect(() => {
@@ -557,18 +589,18 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
       const my = e.clientY - rect.top;
 
       const zoomFactor = e.deltaY < 0 ? 1.15 : 0.8695;
+      const currentZoom = transformRef.current.zoom;
+      const currentPan = transformRef.current.pan;
 
-      setZoom((prevZoom) => {
-        const nextZoom = Math.min(Math.max(prevZoom * zoomFactor, 0.15), 50);
-        const factor = nextZoom / prevZoom;
+      const nextZoom = Math.min(Math.max(currentZoom * zoomFactor, 0.15), 50);
+      const factor = nextZoom / currentZoom;
 
-        setPan((prevPan) => ({
-          x: mx - viewportSize.width / 2 - (mx - viewportSize.width / 2 - prevPan.x) * factor,
-          y: my - viewportSize.height / 2 - (my - viewportSize.height / 2 - prevPan.y) * factor
-        }));
+      const nextPanX = (mx - viewportSize.width / 2) * (1 - factor) + currentPan.x * factor;
+      const nextPanY = (my - viewportSize.height / 2) * (1 - factor) + currentPan.y * factor;
 
-        return nextZoom;
-      });
+      transformRef.current = { zoom: nextZoom, pan: { x: nextPanX, y: nextPanY } };
+      setZoom(nextZoom);
+      setPan({ x: nextPanX, y: nextPanY });
     };
 
     canvas.addEventListener('wheel', onWheel, { passive: false });
@@ -602,9 +634,12 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
       const dy = e.clientY - state.startY;
       state.dragDist = Math.hypot(dx, dy);
 
+      const newPanX = state.initialPanX + dx;
+      const newPanY = state.initialPanY + dy;
+      transformRef.current.pan = { x: newPanX, y: newPanY };
       setPan({
-        x: state.initialPanX + dx,
-        y: state.initialPanY + dy
+        x: newPanX,
+        y: newPanY
       });
     }
 
@@ -705,10 +740,10 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
 
       pinchRef.current = {
         startDist: dist,
-        startZoom: zoom,
+        startZoom: transformRef.current.zoom,
         midX,
         midY,
-        initialPan: { ...pan }
+        initialPan: { ...transformRef.current.pan }
       };
     }
   };
@@ -721,13 +756,14 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
       const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       const scaleRatio = dist / pinchRef.current.startDist;
       const nextZoom = Math.min(Math.max(pinchRef.current.startZoom * scaleRatio, 0.15), 50);
-      const factor = nextZoom / zoom;
+      const factor = nextZoom / pinchRef.current.startZoom;
 
+      const nextPanX = (pinchRef.current.midX - viewportSize.width / 2) * (1 - factor) + pinchRef.current.initialPan.x * factor;
+      const nextPanY = (pinchRef.current.midY - viewportSize.height / 2) * (1 - factor) + pinchRef.current.initialPan.y * factor;
+
+      transformRef.current = { zoom: nextZoom, pan: { x: nextPanX, y: nextPanY } };
       setZoom(nextZoom);
-      setPan((prevPan) => ({
-        x: pinchRef.current.midX - viewportSize.width / 2 - (pinchRef.current.midX - viewportSize.width / 2 - prevPan.x) * factor,
-        y: pinchRef.current.midY - viewportSize.height / 2 - (pinchRef.current.midY - viewportSize.height / 2 - prevPan.y) * factor
-      }));
+      setPan({ x: nextPanX, y: nextPanY });
     }
   };
 
@@ -1326,40 +1362,49 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
         {/* 2. TOOLBAR: North Orientation, Labels, Cadastral Ruler, Layers & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            {/* North Orientation Selector */}
-            <div className="inline-flex items-center rounded-lg bg-slate-800 p-0.5 border border-slate-700">
+            {/* North Orientation Badge (Strictly North 270° Estate Grid) */}
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-950/80 border border-sky-600/50 text-sky-300 text-[11px] font-bold shadow-xs select-none">
+              <span>🧭 North 270°</span>
+              <span className="text-[9px] font-mono font-normal text-sky-400/80 bg-sky-900/60 px-1.5 py-0.5 rounded">Estate Grid</span>
+            </div>
+
+            {/* Cadastral Zoom Controls in Toolbar */}
+            <div className="inline-flex items-center rounded-lg bg-slate-800 p-0.5 border border-slate-700 text-[11px]">
+              <span className="px-2 text-slate-400 font-medium text-[10px] uppercase">Zoom:</span>
               <button
                 type="button"
-                onClick={() => setNorthRotation(0)}
-                className={`px-2.5 py-1.5 rounded text-[11px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                  northRotation === 0
-                    ? 'bg-sky-500 text-slate-950 shadow-xs'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-                title="Reset layout to True North Up (0°) - Standard Survey Orientation"
+                onClick={handleZoomOut}
+                className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded transition cursor-pointer"
+                title="Zoom Out (-)"
+                aria-label="Zoom Out"
               >
-                <span>🧭 N 0° Up</span>
+                <Minus size={13} weight="bold" />
               </button>
               <button
                 type="button"
-                onClick={() => setNorthRotation(270)}
-                className={`px-2.5 py-1.5 rounded text-[11px] font-semibold transition flex items-center gap-1 cursor-pointer ${
-                  northRotation === 270
-                    ? 'bg-sky-500 text-slate-950 font-bold shadow-xs'
-                    : 'text-slate-300 hover:text-white'
-                }`}
-                title="Rotate layout to Estate Grid North 270°0' (West / Left)"
+                onClick={handleResetZoom}
+                className="px-2 py-1 font-mono font-bold text-slate-200 hover:text-white hover:bg-slate-700 rounded transition cursor-pointer text-[11px]"
+                title="Reset Zoom to 100%"
               >
-                <span>North 270°</span>
+                {Math.round(zoom * 100)}%
               </button>
               <button
                 type="button"
-                onClick={handleCycleRotation}
-                className="p-1.5 text-slate-400 hover:text-white rounded hover:bg-slate-700 cursor-pointer"
-                title={`Cycle rotation 90° (Current: ${northRotation}°)`}
-                aria-label="Rotate 90 degrees"
+                onClick={handleZoomIn}
+                className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded transition cursor-pointer"
+                title="Zoom In (+)"
+                aria-label="Zoom In"
               >
-                <ArrowsClockwise size={13} weight="bold" />
+                <Plus size={13} weight="bold" />
+              </button>
+              <button
+                type="button"
+                onClick={() => handleFitView('all')}
+                className="p-1.5 text-sky-400 hover:text-sky-300 hover:bg-slate-700 rounded transition cursor-pointer"
+                title="Fit All Points to View (Zoom Extents)"
+                aria-label="Fit View"
+              >
+                <ArrowsOut size={13} weight="bold" />
               </button>
             </div>
 
@@ -1606,13 +1651,11 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
         />
 
         {/* FLOATING CAD CONTROLS (BOTTOM-RIGHT) */}
-        <div className="absolute bottom-3 right-3 flex flex-col gap-1.5 z-20">
+        <div className="absolute bottom-4 right-4 flex flex-col gap-1.5 z-30">
           <div className="bg-slate-900/95 backdrop-blur-md rounded-xl p-1 border border-slate-700/80 shadow-2xl flex flex-col gap-1 items-center">
             <button
               type="button"
-              onClick={() => {
-                setZoom((prevZoom) => Math.min(prevZoom * 1.25, 50));
-              }}
+              onClick={handleZoomIn}
               className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-slate-200 hover:text-white hover:bg-slate-700/80 active:bg-blue-600 rounded-lg transition text-base font-bold cursor-pointer"
               title="Zoom In (+)"
               aria-label="Zoom In"
@@ -1621,9 +1664,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
             </button>
             <button
               type="button"
-              onClick={() => {
-                setZoom((prevZoom) => Math.max(prevZoom * 0.8, 0.15));
-              }}
+              onClick={handleZoomOut}
               className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center text-slate-200 hover:text-white hover:bg-slate-700/80 active:bg-blue-600 rounded-lg transition text-base font-bold cursor-pointer"
               title="Zoom Out (-)"
               aria-label="Zoom Out"
@@ -1632,10 +1673,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
             </button>
             <button
               type="button"
-              onClick={() => {
-                setZoom(1.0);
-                setPan({ x: 0, y: 0 });
-              }}
+              onClick={handleResetZoom}
               className="px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-300 hover:text-white rounded hover:bg-slate-700/80 transition text-center cursor-pointer"
               title="Reset Zoom to 100%"
             >

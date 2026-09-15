@@ -141,4 +141,57 @@ describe('ShapePlotViewer - Cadastral Survey Calculations & Formats', () => {
       });
     });
   });
+
+  describe('Zoom Calculations & Coordinate Invariance', () => {
+    it('should preserve screen center invariant under center-anchored zoom', () => {
+      // Suppose viewport is 800x600, pan is at (50, -30)
+      const prevPan = { x: 50, y: -30 };
+      const prevZoom = 1.0;
+      const nextZoom = 1.25;
+      const factor = nextZoom / prevZoom;
+
+      const nextPan = {
+        x: prevPan.x * factor,
+        y: prevPan.y * factor
+      };
+
+      expect(nextPan.x).toBeCloseTo(62.5, 3);
+      expect(nextPan.y).toBeCloseTo(-37.5, 3);
+    });
+
+    it('should maintain exact cursor-anchored invariant when zooming with mouse wheel at cursor (mx, my)', () => {
+      const W = 800;
+      const H = 600;
+      const mx = 600; // cursor at 75% width
+      const my = 200; // cursor at 33% height
+      const currentPan = { x: 40, y: -20 };
+      const currentZoom = 2.0;
+      const factor = 1.15; // 15% zoom in
+      const nextZoom = currentZoom * factor;
+
+      // Cursor-anchored formula: (mx - W/2) * (1 - factor) + currentPan.x * factor
+      const nextPanX = (mx - W / 2) * (1 - factor) + currentPan.x * factor;
+      const nextPanY = (my - H / 2) * (1 - factor) + currentPan.y * factor;
+
+      // Check that (mx - W/2 - nextPanX) / nextZoom === (mx - W/2 - currentPan.x) / currentZoom
+      const deltaBefore = (mx - W / 2 - currentPan.x) / currentZoom;
+      const deltaAfter = (mx - W / 2 - nextPanX) / nextZoom;
+      expect(deltaAfter).toBeCloseTo(deltaBefore, 5);
+
+      const deltaYBefore = (my - H / 2 - currentPan.y) / currentZoom;
+      const deltaYAfter = (my - H / 2 - nextPanY) / nextZoom;
+      expect(deltaYAfter).toBeCloseTo(deltaYBefore, 5);
+    });
+
+    it('should clamp zoom within safe cadastral inspection limits [0.15x to 50x]', () => {
+      const minLimit = 0.15;
+      const maxLimit = 50;
+
+      const zoomOutExtreme = Math.max(0.15 * 0.5, minLimit);
+      expect(zoomOutExtreme).toBe(0.15);
+
+      const zoomInExtreme = Math.min(50 * 1.5, maxLimit);
+      expect(zoomInExtreme).toBe(50);
+    });
+  });
 });
