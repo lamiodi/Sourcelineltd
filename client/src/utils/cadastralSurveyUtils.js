@@ -145,7 +145,189 @@ export const detectDuplicateCoordinates = (points, tolerance = 0.005) => {
   };
 };
 
-// Auto-detect coordinate inversion (X/Y or Lat/Long swap)
+// ============================================================================
+// GEODETIC DATUM TRANSFORMATION ENGINE (MINNA <-> WGS84)
+// ============================================================================
+// Nigerian Minna Datum (Clarke 1880 modified): a = 6,378,249.145 m, 1/f = 293.465
+// WGS84: a = 6,378,137.0 m, 1/f = 298.257223563
+// Geocentric translation (EPSG:1358 Minna -> WGS84, 3-parameter):
+// dX = -92 m, dY = -93 m, dZ = +122 m (negated for the inverse direction)
+export const MINNA_A = 6378249.145;
+export const MINNA_F = 1 / 293.465;
+export const WGS84_A = 6378137.0;
+export const WGS84_F = 1 / 298.257223563;
+export const MINNA_WGS84_SHIFT = { dx: -92, dy: -93, dz: 122 };
+
+export function utmToLatLon(easting, northing, zone = 31, a = WGS84_A, f = WGS84_F) {
+  const k0 = 0.9996;
+  const e = Math.sqrt(2 * f - f * f);
+  const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
+  const x = easting - 500000.0;
+  const y = northing;
+
+  const m = y / k0;
+  const mu = m / (a * (1 - (e * e) / 4 - (3 * Math.pow(e, 4)) / 64 - (5 * Math.pow(e, 6)) / 256));
+
+  const phi1Rad = mu +
+    (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu) +
+    (21 * Math.pow(e1, 2) / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu) +
+    (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu) +
+    (1097 * Math.pow(e1, 4) / 512) * Math.sin(8 * mu);
+
+  const n1 = a / Math.sqrt(1 - e * e * Math.sin(phi1Rad) * Math.sin(phi1Rad));
+  const t1 = Math.tan(phi1Rad) * Math.tan(phi1Rad);
+  const c1 = (e * e / (1 - e * e)) * Math.cos(phi1Rad) * Math.cos(phi1Rad);
+  const r1 = a * (1 - e * e) / Math.pow(1 - e * e * Math.sin(phi1Rad) * Math.sin(phi1Rad), 1.5);
+  const d = x / (n1 * k0);
+
+  const lat = phi1Rad - (n1 * Math.tan(phi1Rad) / r1) * (
+    (d * d) / 2 -
+    (5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * (e * e / (1 - e * e))) * Math.pow(d, 4) / 24 +
+    (61 + 90 * t1 + 298 * c1 + 45 * t1 * t1 - 252 * (e * e / (1 - e * e)) - 3 * c1 * c1) * Math.pow(d, 6) / 720
+  );
+
+  const lon = (
+    d -
+    (1 + 2 * t1 + c1) * Math.pow(d, 3) / 6 +
+    (5 - 2 * c1 + 28 * t1 - 3 * c1 * c1 + 8 * (e * e / (1 - e * e)) + 24 * t1 * t1) * Math.pow(d, 5) / 120
+  ) / Math.cos(phi1Rad);
+
+  const lambda0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
+  return {
+    lat: (lat * 180) / Math.PI,
+    lon: ((lon + lambda0) * 180) / Math.PI
+  };
+}
+
+export function latLonToUtm(lat, lon, zone = 31, a = WGS84_A, f = WGS84_F) {
+  const k0 = 0.9996;
+  const phi = (lat * Math.PI) / 180.0;
+  const lambda = (lon * Math.PI) / 180.0;
+  const lambda0 = (((zone - 1) * 6 - 180 + 3) * Math.PI) / 180.0;
+
+  const e = Math.sqrt(2 * f - f * f);
+  const ep2 = (e * e) / (1 - e * e);
+  const n = a / Math.sqrt(1 - e * e * Math.sin(phi) * Math.sin(phi));
+  const t = Math.tan(phi) * Math.tan(phi);
+  const c = ep2 * Math.cos(phi) * Math.cos(phi);
+  const aa = (lambda - lambda0) * Math.cos(phi);
+
+  const m = a * (
+    (1 - (e * e) / 4 - (3 * Math.pow(e, 4)) / 64 - (5 * Math.pow(e, 6)) / 256) * phi -
+    ((3 * e * e) / 8 + (3 * Math.pow(e, 4)) / 32 + (45 * Math.pow(e, 6)) / 1024) * Math.sin(2 * phi) +
+    ((15 * Math.pow(e, 4)) / 256 + (45 * Math.pow(e, 6)) / 1024) * Math.sin(4 * phi) -
+    ((35 * Math.pow(e, 6)) / 3072) * Math.sin(6 * phi)
+  );
+
+  const easting = 500000.0 + k0 * n * (
+    aa +
+    (1 - t + c) * Math.pow(aa, 3) / 6 +
+    (5 - 18 * t + t * t + 72 * c - 58 * ep2) * Math.pow(aa, 5) / 120
+  );
+
+  const northing = k0 * (
+    m + n * Math.tan(phi) * (
+      (aa * aa) / 2 +
+      (5 - t + 9 * c + 4 * c * c) * Math.pow(aa, 4) / 24 +
+      (61 - 58 * t + t * t + 600 * c - 330 * ep2) * Math.pow(aa, 6) / 720
+    )
+  );
+
+  return { easting, northing };
+}
+
+// Geodetic (lat/lon/height) -> geocentric Earth-Centred Earth-Fixed (ECEF)
+function geodeticToEcef(latDeg, lonDeg, h, a, f) {
+  const e2 = 2 * f - f * f;
+  const phi = (latDeg * Math.PI) / 180;
+  const lam = (lonDeg * Math.PI) / 180;
+  const sinPhi = Math.sin(phi);
+  const cosPhi = Math.cos(phi);
+  const n = a / Math.sqrt(1 - e2 * sinPhi * sinPhi);
+
+  return {
+    x: (n + h) * cosPhi * Math.cos(lam),
+    y: (n + h) * cosPhi * Math.sin(lam),
+    z: (n * (1 - e2) + h) * sinPhi
+  };
+}
+
+// ECEF -> geodetic using Bowring's closed-form method (sub-millimetre accuracy)
+function ecefToGeodetic(x, y, z, a, f) {
+  const e2 = 2 * f - f * f;
+  const b = a * (1 - f);
+  const ep2 = (a * a - b * b) / (b * b);
+  const p = Math.hypot(x, y);
+  const lon = Math.atan2(y, x);
+
+  const theta = Math.atan2(a * z, p * b);
+  const sinTheta = Math.sin(theta);
+  const cosTheta = Math.cos(theta);
+  const lat = Math.atan2(
+    z + ep2 * b * sinTheta * sinTheta * sinTheta,
+    p - e2 * a * cosTheta * cosTheta * cosTheta
+  );
+
+  const sinLat = Math.sin(lat);
+  const n = a / Math.sqrt(1 - e2 * sinLat * sinLat);
+  const height = p / Math.cos(lat) - n;
+
+  return {
+    lat: (lat * 180) / Math.PI,
+    lon: (lon * 180) / Math.PI,
+    height
+  };
+}
+
+// Minna Datum UTM (Clarke 1880) -> WGS84 Lat/Lon via exact geocentric 3-parameter
+// transformation (EPSG:1358). Height assumed 0 m since survey exports carry no
+// ellipsoidal height; the error from this is well under a metre in Nigeria.
+export function minnaUtmToWgs84(easting, northing, zone = 31) {
+  const minnaGeo = utmToLatLon(easting, northing, zone, MINNA_A, MINNA_F);
+  const ecef = geodeticToEcef(minnaGeo.lat, minnaGeo.lon, 0, MINNA_A, MINNA_F);
+  const shifted = ecefToGeodetic(
+    ecef.x + MINNA_WGS84_SHIFT.dx,
+    ecef.y + MINNA_WGS84_SHIFT.dy,
+    ecef.z + MINNA_WGS84_SHIFT.dz,
+    WGS84_A,
+    WGS84_F
+  );
+  return { lat: shifted.lat, lon: shifted.lon };
+}
+
+// WGS84 Lat/Lon -> Minna Datum UTM (inverse of the above, shift signs negated)
+export function wgs84ToMinnaUtm(lat, lon, zone = 31) {
+  const ecef = geodeticToEcef(lat, lon, 0, WGS84_A, WGS84_F);
+  const minnaGeo = ecefToGeodetic(
+    ecef.x - MINNA_WGS84_SHIFT.dx,
+    ecef.y - MINNA_WGS84_SHIFT.dy,
+    ecef.z - MINNA_WGS84_SHIFT.dz,
+    MINNA_A,
+    MINNA_F
+  );
+  return latLonToUtm(minnaGeo.lat, minnaGeo.lon, zone, MINNA_A, MINNA_F);
+}
+
+// ============================================================================
+// COORDINATE INVERSION DETECTION (X/Y or Lat/Lon swap)
+// ============================================================================
+// Valid magnitude windows for Nigerian projected survey coordinates. UTM zones
+// 31N/32N (and the Minna Traverse Mercator belts, which share the 500,000 m
+// false easting) mathematically confine Easting to ~166,021–833,979 m in any
+// zone; a small tolerance is applied. Mainland Nigeria spans ~3.6°–14.4°N,
+// i.e. Northing ~400,000–1,600,000 m. Easting is NOT required to be smaller
+// than Northing — in eastern Zone 31N and much of Zone 32N a statutory Easting
+// legitimately exceeds the Northing — so inversion is only reported when the
+// current column mapping is impossible as projected coordinates AND the
+// swapped mapping is valid.
+const UTM_E_MIN = 150000;
+const UTM_E_MAX = 850000;
+const UTM_N_MIN = 400000;
+const UTM_N_MAX = 1600000;
+
+const isPlausibleEasting = (v) => v >= UTM_E_MIN && v <= UTM_E_MAX;
+const isPlausibleNorthing = (v) => v >= UTM_N_MIN && v <= UTM_N_MAX;
+
 export const detectCoordinateInversion = (points) => {
   if (!points || points.length === 0) {
     return {
@@ -184,43 +366,67 @@ export const detectCoordinateInversion = (points) => {
   const avgE = sumE / validCount;
   const avgN = sumN / validCount;
 
-  // Case 1: Standard Nigerian UTM Zone 31N / 32N coordinates (Minna or WGS84 UTM)
-  // Easting: typically 300,000 to 780,000 (Lagos/Ogun/Oyo: ~500k - 700k)
-  // Northing: typically 650,000 to 1,500,000 (Lagos/Ogun: ~700k - 800k+, North: > 1,000,000)
-  const isUtmRange = (avgE > 100000 || avgN > 100000);
-  if (isUtmRange) {
-    if (avgE > 650000 && avgN < 620000) {
-      const diff = avgE - avgN;
+  // Case 1: Geographic coordinates (Lat/Lon in decimal degrees)
+  // Nigeria: Latitude ~4°N–14°N, Longitude ~2.7°E–14.7°E. Only flagged when the
+  // swapped reading is unambiguous (values that fit both bands are left alone).
+  if (Math.abs(avgE) <= 180 && Math.abs(avgN) <= 180) {
+    const xInLatBand = avgE >= 4 && avgE <= 14;
+    const yInLonBand = avgN >= 2 && avgN <= 15;
+    const xInLonBand = avgE >= 2 && avgE <= 15;
+    const yInLatBand = avgN >= 4 && avgN <= 14;
+
+    if (xInLatBand && yInLonBand && !(xInLonBand && yInLatBand)) {
       return {
         isInvertedSuspected: true,
-        reason: `Values in the Easting column exceed Northing by ${diff.toFixed(0)}m. In Nigerian UTM Zone 31N (Lagos/Ogun/Oyo), true Northing is ~700,000–900,000m and Easting is ~500,000–650,000m. Your columns match a Total Station (Point, Northing, Easting) export.`,
-        zone: 'Nigerian UTM Zone 31N (Lagos / South-West)',
-        diffMeters: diff,
+        reason: `Column 1 (${avgE.toFixed(4)}°) resembles Nigeria's Latitude band (4–14°N) and Column 2 (${avgN.toFixed(4)}°) the Longitude band (2–15°E). Standard GIS order is Longitude (X) first, Latitude (Y) second.`,
+        zone: 'Geographic (WGS84 Degrees)',
+        diffMeters: avgE - avgN,
+        avgEasting: avgE,
+        avgNorthing: avgN,
+        confidence: 0.9,
+        isVerifiedValid: false
+      };
+    }
+    if (xInLonBand && yInLatBand && !(xInLatBand && yInLonBand)) {
+      return {
+        isInvertedSuspected: false,
+        reason: `Verified geographic coordinates: Longitude (${avgE.toFixed(4)}°E), Latitude (${avgN.toFixed(4)}°N).`,
+        zone: 'Geographic WGS84 (Verified Long/Lat)',
+        diffMeters: avgE - avgN,
         avgEasting: avgE,
         avgNorthing: avgN,
         confidence: 0.95,
-        isVerifiedValid: false
+        isVerifiedValid: true
       };
     }
-    if (avgE > avgN && (avgE - avgN > 40000)) {
-      const diff = avgE - avgN;
+  }
+
+  // Case 2: Projected / UTM-scale coordinates. Judge ONLY by geometric
+  // plausibility of the magnitude windows — never by "Easting vs Northing"
+  // ordering, which varies legitimately across Nigeria.
+  const isUtmRange = avgE > 100000 || avgN > 100000;
+  if (isUtmRange) {
+    const currentPlausible = isPlausibleEasting(avgE) && isPlausibleNorthing(avgN);
+    const swappedPlausible = isPlausibleEasting(avgN) && isPlausibleNorthing(avgE);
+
+    if (!currentPlausible && swappedPlausible) {
       return {
         isInvertedSuspected: true,
-        reason: `Values in the Easting column exceed Northing by ${diff.toFixed(0)}m. Cadastral records in this zone typically have Northing > Easting. Click below to invert columns across all points and update the 2D plot.`,
-        zone: 'Projected Survey Grid (Northing > Easting expected)',
-        diffMeters: diff,
+        reason: `Easting column averages ${avgE.toFixed(0)}m, which cannot be a valid UTM/Minna Easting (must fall between ${UTM_E_MIN.toLocaleString()}m and ${UTM_E_MAX.toLocaleString()}m), while the swapped reading (Easting ~${avgN.toFixed(0)}m, Northing ~${avgE.toFixed(0)}m) is fully valid. Files that list Northing before Easting — common in Total Station P,N,E exports — produce exactly this pattern.`,
+        zone: 'Nigerian UTM / Minna Belt Grid',
+        diffMeters: avgE - avgN,
         avgEasting: avgE,
         avgNorthing: avgN,
-        confidence: 0.85,
+        confidence: 0.9,
         isVerifiedValid: false
       };
     }
-    // Verified valid UTM coordinates: Northing > Easting
-    if (avgN > avgE && (avgN - avgE > 40000)) {
+
+    if (currentPlausible && !swappedPlausible) {
       return {
         isInvertedSuspected: false,
-        reason: `Verified coordinate alignment: Easting (X: ~${avgE.toFixed(0)}m), Northing (Y: ~${avgN.toFixed(0)}m). Northing > Easting matches statutory cadastral records.`,
-        zone: avgN > 650000 && avgE < 650000 ? 'Nigerian UTM Zone 31N (Verified)' : 'Projected Survey Grid (Verified)',
+        reason: `Easting (X ~${avgE.toFixed(0)}m) and Northing (Y ~${avgN.toFixed(0)}m) both fall within valid Nigerian survey grid ranges; the swapped order would place an invalid value in one column.`,
+        zone: 'Nigerian UTM / Minna Belt Grid (Verified)',
         diffMeters: avgN - avgE,
         avgEasting: avgE,
         avgNorthing: avgN,
@@ -230,37 +436,13 @@ export const detectCoordinateInversion = (points) => {
     }
   }
 
-  // Case 2: Geographic coordinates (Lat/Long in decimal degrees)
-  // In Nigeria: Latitude is ~4°N to ~14°N, Longitude is ~2°E to ~15°E
-  if (Math.abs(avgE) <= 180 && Math.abs(avgN) <= 180) {
-    if (avgE >= 4 && avgE <= 14 && avgN >= 2 && avgN <= 8) {
-      return {
-        isInvertedSuspected: true,
-        reason: `Column 1 (${avgE.toFixed(4)}°) resembles Latitude and Column 2 (${avgN.toFixed(4)}°) resembles Longitude. Standard GIS format requires Longitude (X), Latitude (Y).`,
-        zone: 'Geographic (WGS84 Degrees)',
-        avgEasting: avgE,
-        avgNorthing: avgN,
-        confidence: 0.9,
-        isVerifiedValid: false
-      };
-    }
-    if (avgE >= 2 && avgE <= 15 && avgN >= 4 && avgN <= 14) {
-      return {
-        isInvertedSuspected: false,
-        reason: `Verified geographic coordinates: Longitude (${avgE.toFixed(4)}°E), Latitude (${avgN.toFixed(4)}°N).`,
-        zone: 'Geographic WGS84 (Verified Long/Lat)',
-        avgEasting: avgE,
-        avgNorthing: avgN,
-        confidence: 0.95,
-        isVerifiedValid: true
-      };
-    }
-  }
-
+  // Both readings plausible (order genuinely ambiguous) or a local/site grid:
+  // no automatic verdict — the manual Swap X ⇄ Y control remains available.
   return {
     isInvertedSuspected: false,
     reason: '',
-    zone: 'Custom / Local Coordinate System',
+    zone: 'Projected Survey Grid / Local Grid (order not assessed)',
+    diffMeters: Math.abs(avgE - avgN),
     avgEasting: avgE,
     avgNorthing: avgN,
     confidence: 0,

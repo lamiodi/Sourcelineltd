@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Download,
@@ -39,156 +39,19 @@ import { API_URL } from '../config';
 import ShapePlotViewer from '../components/ShapePlotViewer';
 
 // ============================================================================
-// GEODETIC DATUM TRANSFORMATION ENGINE (MINNA <-> WGS84)
+// GEODETIC DATUM ENGINE & CADASTRAL SURVEY UTILITIES
 // ============================================================================
-// Nigerian Minna Datum (Clarke 1880 modified): a = 6378249.145m, 1/f = 293.465
-// WGS84: a = 6378137.0m, 1/f = 298.257223563
-// Standard 3-parameter transformation for Nigeria (NGB / EPSG 26391 / 26392):
-// dX = -92m, dY = -93m, dZ = +122m
-function utmToLatLon(easting, northing, zone = 31, a = 6378137.0, f = 1 / 298.257223563) {
-  const k0 = 0.9996;
-  const e = Math.sqrt(2 * f - f * f);
-  const e1 = (1 - Math.sqrt(1 - e * e)) / (1 + Math.sqrt(1 - e * e));
-  const x = easting - 500000.0;
-  const y = northing;
-
-  const m = y / k0;
-  const mu = m / (a * (1 - (e * e) / 4 - (3 * Math.pow(e, 4)) / 64 - (5 * Math.pow(e, 6)) / 256));
-
-  const phi1Rad = mu +
-    (3 * e1 / 2 - 27 * Math.pow(e1, 3) / 32) * Math.sin(2 * mu) +
-    (21 * Math.pow(e1, 2) / 16 - 55 * Math.pow(e1, 4) / 32) * Math.sin(4 * mu) +
-    (151 * Math.pow(e1, 3) / 96) * Math.sin(6 * mu) +
-    (1097 * Math.pow(e1, 4) / 512) * Math.sin(8 * mu);
-
-  const n1 = a / Math.sqrt(1 - e * e * Math.sin(phi1Rad) * Math.sin(phi1Rad));
-  const t1 = Math.tan(phi1Rad) * Math.tan(phi1Rad);
-  const c1 = (e * e / (1 - e * e)) * Math.cos(phi1Rad) * Math.cos(phi1Rad);
-  const r1 = a * (1 - e * e) / Math.pow(1 - e * e * Math.sin(phi1Rad) * Math.sin(phi1Rad), 1.5);
-  const d = x / (n1 * k0);
-
-  const lat = phi1Rad - (n1 * Math.tan(phi1Rad) / r1) * (
-    (d * d) / 2 -
-    (5 + 3 * t1 + 10 * c1 - 4 * c1 * c1 - 9 * (e * e / (1 - e * e))) * Math.pow(d, 4) / 24 +
-    (61 + 90 * t1 + 298 * c1 + 45 * t1 * t1 - 252 * (e * e / (1 - e * e)) - 3 * c1 * c1) * Math.pow(d, 6) / 720
-  );
-
-  const lon = (
-    d -
-    (1 + 2 * t1 + c1) * Math.pow(d, 3) / 6 +
-    (5 - 2 * c1 + 28 * t1 - 3 * c1 * c1 + 8 * (e * e / (1 - e * e)) + 24 * t1 * t1) * Math.pow(d, 5) / 120
-  ) / Math.cos(phi1Rad);
-
-  const lambda0 = ((zone - 1) * 6 - 180 + 3) * Math.PI / 180;
-  return {
-    lat: (lat * 180) / Math.PI,
-    lon: ((lon + lambda0) * 180) / Math.PI
-  };
-}
-
-function latLonToUtm(lat, lon, zone = 31, a = 6378137.0, f = 1 / 298.257223563) {
-  const k0 = 0.9996;
-  const phi = (lat * Math.PI) / 180.0;
-  const lambda = (lon * Math.PI) / 180.0;
-  const lambda0 = (((zone - 1) * 6 - 180 + 3) * Math.PI) / 180.0;
-
-  const e = Math.sqrt(2 * f - f * f);
-  const ep2 = (e * e) / (1 - e * e);
-  const n = a / Math.sqrt(1 - e * e * Math.sin(phi) * Math.sin(phi));
-  const t = Math.tan(phi) * Math.tan(phi);
-  const c = ep2 * Math.cos(phi) * Math.cos(phi);
-  const aa = (lambda - lambda0) * Math.cos(phi);
-
-  const m = a * (
-    (1 - (e * e) / 4 - (3 * Math.pow(e, 4)) / 64 - (5 * Math.pow(e, 6)) / 256) * phi -
-    ((3 * e * e) / 8 + (3 * Math.pow(e, 4)) / 32 + (45 * Math.pow(e, 6)) / 1024) * Math.sin(2 * phi) +
-    ((15 * Math.pow(e, 4)) / 256 + (45 * Math.pow(e, 6)) / 1024) * Math.sin(4 * phi) -
-    ((35 * Math.pow(e, 6)) / 3072) * Math.sin(6 * phi)
-  );
-
-  const easting = 500000.0 + k0 * n * (
-    aa +
-    (1 - t + c) * Math.pow(aa, 3) / 6 +
-    (5 - 18 * t + t * t + 72 * c - 58 * ep2) * Math.pow(aa, 5) / 120
-  );
-
-  const northing = k0 * (
-    m + n * Math.tan(phi) * (
-      (aa * aa) / 2 +
-      (5 - t + 9 * c + 4 * c * c) * Math.pow(aa, 4) / 24 +
-      (61 - 58 * t + t * t + 600 * c - 330 * ep2) * Math.pow(aa, 6) / 720
-    )
-  );
-
-  return { easting, northing };
-}
-
-// Convert Minna Datum UTM to WGS84 (Lat/Lon) with standard datum shift
-function minnaUtmToWgs84(easting, northing, zone = 31) {
-  // 1. Unproject Minna UTM using Clarke 1880 modified ellipsoid
-  const clarke1880A = 6378249.145;
-  const clarke1880F = 1 / 293.465;
-  const minnaGeo = utmToLatLon(easting, northing, zone, clarke1880A, clarke1880F);
-
-  // 2. Datum shift from Minna to WGS84 (Abridged Molodensky)
-  // Nigeria Standard: dX = -92m, dY = -93m, dZ = +122m
-  const dx = -92.0;
-  const dy = -93.0;
-  const dz = 122.0;
-
-  const latRad = (minnaGeo.lat * Math.PI) / 180;
-  const lonRad = (minnaGeo.lon * Math.PI) / 180;
-
-  const dLatSeconds = ((-dx * Math.sin(latRad) * Math.cos(lonRad) - dy * Math.sin(latRad) * Math.sin(lonRad) + dz * Math.cos(latRad)) / clarke1880A) * (180 / Math.PI) * 3600;
-  const dLonSeconds = ((-dx * Math.sin(lonRad) + dy * Math.cos(lonRad)) / (clarke1880A * Math.cos(latRad))) * (180 / Math.PI) * 3600;
-
-  const wgsLat = minnaGeo.lat + dLatSeconds / 3600;
-  const wgsLon = minnaGeo.lon + dLonSeconds / 3600;
-
-  return { lat: wgsLat, lon: wgsLon };
-}
-
-// Convert WGS84 (Lat/Lon) to Minna Datum UTM
-function wgs84ToMinnaUtm(lat, lon, zone = 31) {
-  const clarke1880A = 6378249.145;
-  const clarke1880F = 1 / 293.465;
-
-  const dx = 92.0;
-  const dy = 93.0;
-  const dz = -122.0;
-
-  const latRad = (lat * Math.PI) / 180;
-  const lonRad = (lon * Math.PI) / 180;
-
-  const dLatSeconds = ((-dx * Math.sin(latRad) * Math.cos(lonRad) - dy * Math.sin(latRad) * Math.sin(lonRad) + dz * Math.cos(latRad)) / clarke1880A) * (180 / Math.PI) * 3600;
-  const dLonSeconds = ((-dx * Math.sin(lonRad) + dy * Math.cos(lonRad)) / (clarke1880A * Math.cos(latRad))) * (180 / Math.PI) * 3600;
-
-  const minnaLat = lat + dLatSeconds / 3600;
-  const minnaLon = lon + dLonSeconds / 3600;
-
-  return latLonToUtm(minnaLat, minnaLon, zone, clarke1880A, clarke1880F);
-}
-
-// ============================================================================
-// CADASTRAL & SURVEY UTILITIES (IMPORT & RE-EXPORT FOR COMPATIBILITY)
-// ============================================================================
+// The Minna <-> WGS84 transformation (exact geocentric 3-parameter, EPSG:1358),
+// UTM projection math, inversion detection, duplicate detection, and DXF
+// generation all live in the pure utility module so they are unit-testable.
 import {
-  formatSurveyBearing,
-  calculateCadastralLine,
   detectDuplicateCoordinates,
   detectCoordinateInversion,
   swapPointCoordinates,
-  generateDxfFile
+  generateDxfFile,
+  minnaUtmToWgs84,
+  wgs84ToMinnaUtm
 } from '../utils/cadastralSurveyUtils';
-
-export {
-  formatSurveyBearing,
-  calculateCadastralLine,
-  detectDuplicateCoordinates,
-  detectCoordinateInversion,
-  swapPointCoordinates,
-  generateDxfFile
-};
 
 // ============================================================================
 // SAMPLE DATA
@@ -286,11 +149,6 @@ const MobileFileUploadCard = ({
     </div>
   );
 };
-
-
-// Re-export AREA_PALETTES and use modular ShapePlotViewer component
-export { AREA_PALETTES } from '../components/ShapePlotViewer';
-
 
 
 // ============================================================================
@@ -881,7 +739,7 @@ const PointConverter = () => {
     setParsedCsvPoints(swapped);
     setCsvOutput(buildCsvString(swapped));
     setIsSwappedCsv((prev) => !prev);
-    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate points. 2D plot auto-fitted with True North 0° Up.`);
+    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate points. 2D plot auto-fitted to the Estate Grid view.`);
   };
 
   const downloadCsv = () => {
@@ -1112,7 +970,7 @@ const PointConverter = () => {
     setParsedScriptPoints(swapped);
     setScriptOutput(buildScriptString(swapped));
     setIsSwappedScript((prev) => !prev);
-    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate points. 2D plot auto-fitted with True North 0° Up.`);
+    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate points. 2D plot auto-fitted to the Estate Grid view.`);
   };
 
   const downloadScript = () => {
@@ -1521,13 +1379,13 @@ const PointConverter = () => {
 
               {/* Output Column */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                <div className="p-5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                <div className="p-5 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs">2</span>
                     <h2 className="text-base font-bold text-slate-800">DGPS CSV Data</h2>
                   </div>
                   {parsedCsvPoints.length > 0 && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       {csvDuplicates.hasDuplicates ? (
                         <span className="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-300 rounded-full flex items-center gap-1 shadow-2xs">
                           <Warning size={13} weight="fill" className="text-amber-600" />
@@ -1565,7 +1423,7 @@ const PointConverter = () => {
                 </div>
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
-                  {/* Auto-Detect Inverted Coordinates Warning Banner */}
+                    {/* Auto-Detect Inverted Coordinates Warning Banner */}
                   {csvInversion.isInvertedSuspected && !dismissInversionWarningCsv && (
                     <div className="mb-4 p-3.5 rounded-xl bg-orange-50/90 border border-orange-200 text-orange-950 text-xs shadow-xs">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -1573,13 +1431,13 @@ const PointConverter = () => {
                           <ArrowsLeftRight size={18} className="text-orange-600 shrink-0 mt-0.5" weight="bold" />
                           <div>
                             <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                              <span>Possible Inverted Coordinates Detected (X / Y Swapped)</span>
+                              <span>Inverted Coordinates Detected (Northing Stored Before Easting)</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold border border-orange-200">
                                 Total Station N,E Pattern
                               </span>
                             </div>
                             <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              Values in the Easting column exceed Northing by <strong className="text-slate-800 font-mono">{csvInversion.diffMeters ? csvInversion.diffMeters.toFixed(0) : '229,795'}m</strong>. In Nigerian UTM Zone 31N, statutory Northing is ~700,000–900,000m and Easting is ~500,000–650,000m. Survey equipment (Leica, Kolida, South) exports in <code className="bg-orange-100/80 px-1 py-0.5 rounded text-orange-900 font-mono">P,N,E,Z</code> format.
+                              {csvInversion.reason}
                             </p>
                           </div>
                         </div>
@@ -1589,7 +1447,7 @@ const PointConverter = () => {
                             onClick={handleSwapCsvCoordinates}
                             className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
                           >
-                            <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y (Recommended)
+                            <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y
                           </button>
                           <button
                             type="button"
@@ -1612,24 +1470,26 @@ const PointConverter = () => {
                           <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
                           <div>
                             <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                              <span>Coordinates Geodetically Verified (Easting X, Northing Y)</span>
+                              <span>Coordinate Ranges Validated (Easting X, Northing Y)</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
-                                {csvInversion.zone || 'UTM Zone 31N Verified'}
+                                {csvInversion.zone || 'Nigerian Survey Grid'}
                               </span>
                             </div>
                             <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgNorthing.toFixed(0)}m</span>). Northing &gt; Easting complies with official SURCON cadastral records. 2D geometry is rendered North 270° (Estate Grid).
+                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgNorthing.toFixed(0)}m</span>). Both values fall within valid Nigerian survey grid ranges — Easting is not required to be smaller than Northing (eastern UTM Zone 31N and much of Zone 32N legitimately exceed it). 2D geometry is rendered on the North 270° Estate Grid.
                             </p>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleSwapCsvCoordinates}
-                          className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 font-semibold text-xs transition flex items-center gap-1 cursor-pointer self-end sm:self-center"
-                          title="Invert columns back to previous state"
-                        >
-                          <ArrowsLeftRight size={13} weight="bold" /> Undo Swap
-                        </button>
+                        {isSwappedCsv && (
+                          <button
+                            type="button"
+                            onClick={handleSwapCsvCoordinates}
+                            className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 font-semibold text-xs transition flex items-center gap-1 cursor-pointer self-end sm:self-center"
+                            title="Invert columns back to previous state"
+                          >
+                            <ArrowsLeftRight size={13} weight="bold" /> Undo Swap
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2005,13 +1865,13 @@ const PointConverter = () => {
 
               {/* Output Column */}
               <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
-                <div className="p-5 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+                <div className="p-5 border-b border-slate-100 bg-slate-50/70 flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-xs">2</span>
                     <h2 className="text-base font-bold text-slate-800">AutoCAD Script (.scr)</h2>
                   </div>
                   {parsedScriptPoints.length > 0 && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       {scriptDuplicates.hasDuplicates ? (
                         <span className="text-xs font-semibold px-2.5 py-1 bg-amber-50 text-amber-800 border border-amber-300 rounded-full flex items-center gap-1 shadow-2xs">
                           <Warning size={13} weight="fill" className="text-amber-600" />
@@ -2057,13 +1917,13 @@ const PointConverter = () => {
                           <ArrowsLeftRight size={18} className="text-orange-600 shrink-0 mt-0.5" weight="bold" />
                           <div>
                             <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                              <span>Possible Inverted Coordinates Detected (X / Y Swapped)</span>
+                              <span>Inverted Coordinates Detected (Northing Stored Before Easting)</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold border border-orange-200">
                                 Total Station N,E Pattern
                               </span>
                             </div>
                             <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              Values in the Easting column exceed Northing by <strong className="text-slate-800 font-mono">{scriptInversion.diffMeters ? scriptInversion.diffMeters.toFixed(0) : '229,795'}m</strong>. In Nigerian UTM Zone 31N, statutory Northing is ~700,000–900,000m and Easting is ~500,000–650,000m. Total Station instruments export in <code className="bg-orange-100/80 px-1 py-0.5 rounded text-orange-900 font-mono">P,N,E,Z</code> format.
+                              {scriptInversion.reason}
                             </p>
                           </div>
                         </div>
@@ -2073,7 +1933,7 @@ const PointConverter = () => {
                             onClick={handleSwapScriptCoordinates}
                             className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
                           >
-                            <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y (Recommended)
+                            <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y
                           </button>
                           <button
                             type="button"
@@ -2096,24 +1956,26 @@ const PointConverter = () => {
                           <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
                           <div>
                             <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                              <span>Coordinates Geodetically Verified (Easting X, Northing Y)</span>
+                              <span>Coordinate Ranges Validated (Easting X, Northing Y)</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
-                                {scriptInversion.zone || 'UTM Zone 31N Verified'}
+                                {scriptInversion.zone || 'Nigerian Survey Grid'}
                               </span>
                             </div>
                             <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgNorthing.toFixed(0)}m</span>). Northing &gt; Easting complies with official SURCON cadastral records. 2D geometry is rendered North 270° (Estate Grid).
+                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgNorthing.toFixed(0)}m</span>). Both values fall within valid Nigerian survey grid ranges — Easting is not required to be smaller than Northing (eastern UTM Zone 31N and much of Zone 32N legitimately exceed it). 2D geometry is rendered on the North 270° Estate Grid.
                             </p>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={handleSwapScriptCoordinates}
-                          className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 font-semibold text-xs transition flex items-center gap-1 cursor-pointer self-end sm:self-center"
-                          title="Invert columns back to previous state"
-                        >
-                          <ArrowsLeftRight size={13} weight="bold" /> Undo Swap
-                        </button>
+                        {isSwappedScript && (
+                          <button
+                            type="button"
+                            onClick={handleSwapScriptCoordinates}
+                            className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 font-semibold text-xs transition flex items-center gap-1 cursor-pointer self-end sm:self-center"
+                            title="Invert columns back to previous state"
+                          >
+                            <ArrowsLeftRight size={13} weight="bold" /> Undo Swap
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -2683,6 +2545,10 @@ const PointConverter = () => {
                         alt="Data Collector QR Code"
                         className="w-32 h-32 object-contain"
                         loading="lazy"
+                        onError={(e) => {
+                          // Offline / blocked QR service: hide the broken image frame, PIN still works
+                          e.currentTarget.parentElement.style.display = 'none';
+                        }}
                       />
                     </div>
                     <span className="text-[11px] text-slate-500">
@@ -2785,14 +2651,16 @@ const PointConverter = () => {
                 <div className="p-5 sm:p-6 space-y-4">
                   {/* Native Mobile File Upload Card */}
                   <MobileFileUploadCard
-                    onFileSelected={(file) => {
+                    title="Upload Survey File (Mobile & Desktop)"
+                    subtitle="Tap to choose a CSV from phone or computer (.csv, .txt, .log, .dat)"
+                    uploadedFileName={transferFileName}
+                    onFileLoaded={(file) => {
                       handleFileUpload(file, setTransferInput, setTransferFileName, (text) => {
                         const parsed = parseAutoCadOrCsv(text);
                         setTransferPoints(parsed);
                       });
                     }}
-                    fileName={transferFileName}
-                    onClear={() => {
+                    onClearFile={() => {
                       setTransferFileName('');
                       setTransferInput('');
                       setTransferPoints([]);
