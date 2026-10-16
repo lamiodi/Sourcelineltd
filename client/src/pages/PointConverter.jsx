@@ -171,6 +171,8 @@ const PointConverter = () => {
   const [csvInput, setCsvInput] = useState('');
   const [csvFormatMode, setCsvFormatMode] = useState('auto');
   const [includeTextLabels, setIncludeTextLabels] = useState(true);
+  // Point label style written into the CAD script: 'number' | 'name' | 'nameCode' | 'code'
+  const [scriptLabelStyle, setScriptLabelStyle] = useState('number');
   const [textHeight, setTextHeight] = useState('2.5');
   const [includePdmode, setIncludePdmode] = useState(true);
   const [includeZoomExtents, setIncludeZoomExtents] = useState(true);
@@ -839,6 +841,20 @@ const PointConverter = () => {
     setSuccessMsg(`Successfully generated AutoCAD Script (.scr) with ${points.length} point${points.length > 1 ? 's' : ''}!`);
   };
 
+  // Resolve the text label written next to each point in the CAD script.
+  // 'number' keeps large layouts readable (TOSET231 -> "231"); falls back to
+  // the row number when the point name has no trailing digits.
+  const getScriptLabel = (pt, index) => {
+    const name = pt.name || pt.id || '';
+    if (scriptLabelStyle === 'code') return (pt.code && pt.code.trim()) || name;
+    if (scriptLabelStyle === 'nameCode') return pt.code ? `${name} (${pt.code})` : name;
+    if (scriptLabelStyle === 'number') {
+      const m = String(name).match(/(\d+)$/);
+      return m ? m[1] : String(index + 1);
+    }
+    return name; // 'name'
+  };
+
   // Helper to build AutoCAD script from points array
   const buildScriptString = (pointsList) => {
     let script = '';
@@ -849,12 +865,13 @@ const PointConverter = () => {
     }
 
     script += '; --- Generated Survey Coordinates ---\n';
-    pointsList.forEach((pt) => {
+    pointsList.forEach((pt, idx) => {
       script += `_POINT ${pt.easting},${pt.northing},${pt.elevation}\n`;
-      const ptLabel = pt.name || pt.id;
-      if (includeTextLabels && ptLabel) {
-        const labelText = pt.code ? `${ptLabel} (${pt.code})` : ptLabel;
-        script += `_-TEXT ${pt.easting},${pt.northing},${pt.elevation} ${textHeight} 0 ${labelText}\n`;
+      if (includeTextLabels) {
+        const labelText = getScriptLabel(pt, idx);
+        if (labelText) {
+          script += `_-TEXT ${pt.easting},${pt.northing},${pt.elevation} ${textHeight} 0 ${labelText}\n`;
+        }
       }
     });
 
@@ -875,6 +892,14 @@ const PointConverter = () => {
 
     return script;
   };
+
+  // Rebuild the script live when label or drawing options change
+  useEffect(() => {
+    if (parsedScriptPoints.length > 0) {
+      setScriptOutput(buildScriptString(parsedScriptPoints));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeTextLabels, scriptLabelStyle, textHeight, includePdmode, includePline, includeZoomExtents]);
 
   // Remove duplicate coordinates from CSV-converted script points
   const handleRemoveScriptDuplicates = (keepLoopClosure = false) => {
@@ -1625,7 +1650,7 @@ const PointConverter = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-slate-200/60">
+                    <div className="flex flex-wrap items-center gap-3 pt-1 border-t border-slate-200/60">
                       <label className="inline-flex items-center gap-2 text-xs font-medium text-slate-700 cursor-pointer">
                         <input
                           type="checkbox"
@@ -1633,19 +1658,39 @@ const PointConverter = () => {
                           onChange={(e) => setIncludeTextLabels(e.target.checked)}
                           className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                         />
-                        Add Text Labels (Point Names)
+                        Add Text Labels
                       </label>
 
                       {includeTextLabels && (
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="text-slate-600 font-medium">Text Height:</span>
-                          <input
-                            type="text"
-                            value={textHeight}
-                            onChange={(e) => setTextHeight(e.target.value)}
-                            className="w-16 border border-slate-200 rounded p-1 text-xs text-center bg-white font-mono"
-                          />
-                        </div>
+                        <>
+                          <div className="flex items-center gap-1.5 text-xs">
+                            <label htmlFor="script-label-style" className="text-slate-600 font-medium">
+                              Label:
+                            </label>
+                            <select
+                              id="script-label-style"
+                              value={scriptLabelStyle}
+                              onChange={(e) => setScriptLabelStyle(e.target.value)}
+                              className="border border-slate-200 rounded-md p-1.5 text-xs bg-white focus:ring-blue-500 focus:border-blue-500 font-medium"
+                              title="Text written next to each point in AutoCAD"
+                            >
+                              <option value="number">Number only (1, 2, 3…)</option>
+                              <option value="name">Point name</option>
+                              <option value="nameCode">Name + code</option>
+                              <option value="code">Feature code</option>
+                            </select>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-slate-600 font-medium">Text Height:</span>
+                            <input
+                              type="text"
+                              value={textHeight}
+                              onChange={(e) => setTextHeight(e.target.value)}
+                              className="w-16 border border-slate-200 rounded p-1 text-xs text-center bg-white font-mono"
+                            />
+                          </div>
+                        </>
                       )}
                     </div>
 
@@ -1932,7 +1977,7 @@ const PointConverter = () => {
                       type="button"
                       onClick={() => {
                         if (parsedScriptPoints.length === 0) return;
-                        const dxfContent = generateDxfFile(parsedScriptPoints, { closeLoop: true });
+                        const dxfContent = generateDxfFile(parsedScriptPoints, { closeLoop: true, labelMode: scriptLabelStyle });
                         const blob = new Blob([dxfContent], { type: 'application/dxf;charset=utf-8;' });
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');

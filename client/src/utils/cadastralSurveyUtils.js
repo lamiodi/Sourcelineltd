@@ -460,7 +460,8 @@ export const swapPointCoordinates = (points) => {
   }));
 };
 
-// Generate standard AutoCAD DXF R12 / ASCII format with points, labels, and closed boundary
+// Generate standard AutoCAD DXF R12 / ASCII format with points, labels, and closed boundary.
+// options.labelMode: 'full' (default, point name) | 'number' (trailing digits) | 'code'
 export function generateDxfFile(points, options = { closeLoop: true, textHeight: 2.5 }) {
   let dxf = `0\nSECTION\n2\nHEADER\n0\nENDSEC\n`;
   dxf += `0\nSECTION\n2\nTABLES\n0\nTABLE\n2\nLAYER\n70\n3\n`;
@@ -470,9 +471,15 @@ export function generateDxfFile(points, options = { closeLoop: true, textHeight:
   dxf += `0\nSECTION\n2\nENTITIES\n`;
 
   // Draw Point entities
-  points.forEach((p) => {
+  points.forEach((p, idx) => {
     dxf += `0\nPOINT\n8\nSURVEY_POINTS\n10\n${p.easting}\n20\n${p.northing}\n30\n${p.elevation || 0.0}\n`;
-    const label = p.id || p.name || 'PT';
+    let label = p.id || p.name || 'PT';
+    if (options.labelMode === 'number') {
+      const m = String(label).match(/(\d+)$/);
+      label = m ? m[1] : String(idx + 1);
+    } else if (options.labelMode === 'code') {
+      label = (p.code && p.code.trim()) || label;
+    }
     dxf += `0\nTEXT\n8\nSURVEY_LABELS\n10\n${parseFloat(p.easting) + 0.8}\n20\n${parseFloat(p.northing) + 0.8}\n30\n${p.elevation || 0.0}\n40\n${options.textHeight || 2.5}\n1\n${label}\n`;
   });
 
