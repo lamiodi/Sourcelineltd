@@ -16,7 +16,6 @@ import {
   Plus,
   Minus,
   ArrowsClockwise,
-  ArrowsLeftRight,
   Warning,
   WarningCircle,
   ShieldCheck,
@@ -37,17 +36,16 @@ import {
 } from '@phosphor-icons/react';
 import { API_URL } from '../config';
 import ShapePlotViewer from '../components/ShapePlotViewer';
+import { readXyzColumns } from '../utils/surveyPointColumns';
 
 // ============================================================================
 // GEODETIC DATUM ENGINE & CADASTRAL SURVEY UTILITIES
 // ============================================================================
 // The Minna <-> WGS84 transformation (exact geocentric 3-parameter, EPSG:1358),
-// UTM projection math, inversion detection, duplicate detection, and DXF
+// UTM projection math, duplicate detection, and DXF
 // generation all live in the pure utility module so they are unit-testable.
 import {
   detectDuplicateCoordinates,
-  detectCoordinateInversion,
-  swapPointCoordinates,
   generateDxfFile,
   minnaUtmToWgs84,
   wgs84ToMinnaUtm
@@ -454,14 +452,6 @@ const PointConverter = () => {
   const csvDuplicates = useMemo(() => detectDuplicateCoordinates(parsedCsvPoints), [parsedCsvPoints]);
   const scriptDuplicates = useMemo(() => detectDuplicateCoordinates(parsedScriptPoints), [parsedScriptPoints]);
 
-  // --- Auto-Detect Inverted Coordinates (X/Y Swap) State ---
-  const [dismissInversionWarningCsv, setDismissInversionWarningCsv] = useState(false);
-  const [dismissInversionWarningScript, setDismissInversionWarningScript] = useState(false);
-  const [isSwappedCsv, setIsSwappedCsv] = useState(false);
-  const [isSwappedScript, setIsSwappedScript] = useState(false);
-  const csvInversion = useMemo(() => detectCoordinateInversion(parsedCsvPoints), [parsedCsvPoints]);
-  const scriptInversion = useMemo(() => detectCoordinateInversion(parsedScriptPoints), [parsedScriptPoints]);
-
   // Helper: File Upload Handler for Mobile & Desktop
   const handleFileUpload = (file, targetSetter, fileNameSetter, autoProcessCallback) => {
     if (!file) return;
@@ -539,7 +529,7 @@ const PointConverter = () => {
         return;
       }
 
-      const parts = splitLine(trimmed).filter((p) => p !== '');
+      const parts = splitLine(trimmed);
       if (parts.length < 2) return;
 
       // Skip header row
@@ -587,39 +577,14 @@ const PointConverter = () => {
           elev = parts[3] || elev;
           ptCode = parts[4] || ptCode;
         }
-      } else if (parts.length === 4) {
-        // [PointID, Easting, Northing, Elevation] OR [Easting, Northing, Elevation, Code]
-        const p0IsNum = !isNaN(parseFloat(parts[0]));
-        const p1IsNum = !isNaN(parseFloat(parts[1]));
-        const p2IsNum = !isNaN(parseFloat(parts[2]));
-        const p3IsNum = !isNaN(parseFloat(parts[3]));
-
-        if (!p0IsNum && p1IsNum && p2IsNum) {
-          ptId = parts[0];
-          easting = parts[1];
-          northing = parts[2];
-          elev = parts[3];
-        } else if (p0IsNum && p1IsNum) {
-          easting = parts[0];
-          northing = parts[1];
-          elev = p2IsNum ? parts[2] : fallbackZ;
-          if (!p3IsNum) ptCode = parts[3];
-        }
-      } else if (parts.length === 3) {
-        // [PointID, Easting, Northing] OR [Easting, Northing, Elevation]
-        const p0Num = parseFloat(parts[0]);
-        const p1Num = parseFloat(parts[1]);
-        const p2Num = parseFloat(parts[2]);
-
-        if (isNaN(p0Num) || (p1Num > 1000 && p2Num > 1000)) {
-          ptId = parts[0];
-          easting = parts[1];
-          northing = parts[2];
-        } else {
-          easting = parts[0];
-          northing = parts[1];
-          elev = parts[2];
-        }
+      } else if (parts.length === 3 || parts.length === 4) {
+        const columns = readXyzColumns(parts);
+        if (!columns) return;
+        ptId = columns.id || null;
+        easting = columns.easting;
+        northing = columns.northing;
+        elev = columns.elevation ?? fallbackZ;
+        ptCode = columns.code || ptCode;
       } else if (parts.length === 2) {
         if (!isNaN(parseFloat(parts[0])) && !isNaN(parseFloat(parts[1]))) {
           easting = parts[0];
@@ -662,6 +627,7 @@ const PointConverter = () => {
       else if (csvFormat === 'P,N,E,Z,D') result += 'PointID,Northing,Easting,Elevation,Code\n';
       else if (csvFormat === 'P,D,E,N,Z') result += 'PointID,Code,Easting,Northing,Elevation\n';
       else if (csvFormat === 'P,E,N,Z') result += 'PointID,Easting,Northing,Elevation\n';
+      else if (csvFormat === 'E,N,Z') result += 'X,Y,Z\n';
     }
 
     pointsList.forEach((pt) => {
@@ -673,6 +639,8 @@ const PointConverter = () => {
         result += `${pt.id},${pt.code},${pt.easting},${pt.northing},${pt.elevation}\n`;
       } else if (csvFormat === 'P,E,N,Z') {
         result += `${pt.id},${pt.easting},${pt.northing},${pt.elevation}\n`;
+      } else if (csvFormat === 'E,N,Z') {
+        result += `${pt.easting},${pt.northing},${pt.elevation}\n`;
       }
     });
     return result;
@@ -695,8 +663,6 @@ const PointConverter = () => {
       return;
     }
 
-    setDismissInversionWarningCsv(false);
-    setIsSwappedCsv(false);
     setParsedCsvPoints(points);
     setCsvOutput(buildCsvString(points));
     setSuccessMsg(`Successfully converted ${points.length} point${points.length > 1 ? 's' : ''} and plotted 2D geometry!`);
@@ -732,15 +698,6 @@ const PointConverter = () => {
     }
   };
 
-  // Swap Easting (X) and Northing (Y) coordinates for AutoCAD-to-CSV points
-  const handleSwapCsvCoordinates = () => {
-    if (parsedCsvPoints.length === 0) return;
-    const swapped = swapPointCoordinates(parsedCsvPoints);
-    setParsedCsvPoints(swapped);
-    setCsvOutput(buildCsvString(swapped));
-    setIsSwappedCsv((prev) => !prev);
-    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate points. 2D plot auto-fitted to the Estate Grid view.`);
-  };
 
   const downloadCsv = () => {
     if (!csvOutput) return;
@@ -783,7 +740,7 @@ const PointConverter = () => {
       const trimmed = line.trim();
       if (!trimmed) return;
 
-      const parts = splitLine(trimmed).filter((p) => p !== '');
+      const parts = splitLine(trimmed);
       if (parts.length < 2) return;
 
       // Skip header row
@@ -841,26 +798,14 @@ const PointConverter = () => {
             elevation = parts[3] || '0.000';
             pointCode = parts[4] || '';
           }
-        } else if (parts.length === 4) {
-          name = parts[0];
-          easting = parts[1];
-          northing = parts[2];
-          elevation = parts[3];
-        } else if (parts.length === 3) {
-          const p0 = parseFloat(parts[0]);
-          const p1 = parseFloat(parts[1]);
-          const p2 = parseFloat(parts[2]);
-
-          if (isNaN(p0) || (p1 > 1000 && p2 > 1000)) {
-            name = parts[0];
-            easting = parts[1];
-            northing = parts[2];
-            elevation = '0.000';
-          } else {
-            easting = parts[0];
-            northing = parts[1];
-            elevation = parts[2];
-          }
+        } else if (parts.length === 3 || parts.length === 4) {
+          const columns = readXyzColumns(parts);
+          if (!columns) return;
+          name = columns.id || name;
+          easting = columns.easting;
+          northing = columns.northing;
+          elevation = columns.elevation ?? '0.000';
+          pointCode = columns.code || '';
         } else if (parts.length === 2) {
           easting = parts[0];
           northing = parts[1];
@@ -889,8 +834,6 @@ const PointConverter = () => {
       return;
     }
 
-    setDismissInversionWarningScript(false);
-    setIsSwappedScript(false);
     setParsedScriptPoints(points);
     setScriptOutput(buildScriptString(points));
     setSuccessMsg(`Successfully generated AutoCAD Script (.scr) with ${points.length} point${points.length > 1 ? 's' : ''}!`);
@@ -963,15 +906,6 @@ const PointConverter = () => {
     }
   };
 
-  // Swap Easting (X) and Northing (Y) coordinates for CSV-to-Script points
-  const handleSwapScriptCoordinates = () => {
-    if (parsedScriptPoints.length === 0) return;
-    const swapped = swapPointCoordinates(parsedScriptPoints);
-    setParsedScriptPoints(swapped);
-    setScriptOutput(buildScriptString(swapped));
-    setIsSwappedScript((prev) => !prev);
-    setSuccessMsg(`Swapped Easting (X) and Northing (Y) for ${swapped.length} coordinate points. 2D plot auto-fitted to the Estate Grid view.`);
-  };
 
   const downloadScript = () => {
     if (!scriptOutput) return;
@@ -1316,7 +1250,8 @@ const PointConverter = () => {
                         <option value="P,E,N,Z,D">Point, Easting, Northing, Elev, Code (P,E,N,Z,D)</option>
                         <option value="P,N,E,Z,D">Point, Northing, Easting, Elev, Code (P,N,E,Z,D)</option>
                         <option value="P,D,E,N,Z">Point, Code, Easting, Northing, Elev (P,D,E,N,Z)</option>
-                        <option value="P,E,N,Z">Point, Easting, Northing, Elev (P,E,N,Z)</option>
+                        <option value="P,E,N,Z">PointID, X, Y, Z</option>
+                        <option value="E,N,Z">X, Y, Z only</option>
                       </select>
                     </div>
                     <label className="inline-flex items-center gap-1.5 cursor-pointer font-medium text-slate-700">
@@ -1358,6 +1293,9 @@ const PointConverter = () => {
                   >
                     <label className="text-xs font-semibold text-slate-600 mb-1.5">
                       Or Paste AutoCAD Command Line / CSV Text:
+                      <span className="block font-normal text-slate-400 mt-0.5">
+                        Import X, Y, Z or PointID, X, Y, Z. X → Easting, Y → Northing, Z → Elevation; column order is preserved.
+                      </span>
                     </label>
                     <textarea
                       className="w-full flex-grow min-h-[220px] p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-xs leading-relaxed resize-none text-slate-800 placeholder-slate-400 bg-white"
@@ -1396,14 +1334,6 @@ const PointConverter = () => {
                           <CheckCircle weight="fill" size={13} /> {parsedCsvPoints.length} Points (Unique)
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={handleSwapCsvCoordinates}
-                        className="px-2.5 py-1 rounded font-semibold text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
-                        title="Swap Easting (X) and Northing (Y) coordinates"
-                      >
-                        <ArrowsLeftRight size={13} weight="bold" /> Swap X ⇄ Y
-                      </button>
                       <div className="inline-flex rounded-md border border-slate-200 p-0.5 bg-white text-xs">
                         <button
                           onClick={() => setViewModeCsv('text')}
@@ -1423,76 +1353,10 @@ const PointConverter = () => {
                 </div>
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
-                    {/* Auto-Detect Inverted Coordinates Warning Banner */}
-                  {csvInversion.isInvertedSuspected && !dismissInversionWarningCsv && (
-                    <div className="mb-4 p-3.5 rounded-xl bg-orange-50/90 border border-orange-200 text-orange-950 text-xs shadow-xs">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="flex items-start gap-2.5">
-                          <ArrowsLeftRight size={18} className="text-orange-600 shrink-0 mt-0.5" weight="bold" />
-                          <div>
-                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                              <span>Inverted Coordinates Detected (Northing Stored Before Easting)</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold border border-orange-200">
-                                Total Station N,E Pattern
-                              </span>
-                            </div>
-                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              {csvInversion.reason}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                          <button
-                            type="button"
-                            onClick={handleSwapCsvCoordinates}
-                            className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDismissInversionWarningCsv(true)}
-                            className="px-2.5 py-1.5 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-slate-800 font-medium text-xs border border-orange-200 transition cursor-pointer"
-                            title="Dismiss warning and keep current coordinate mapping"
-                          >
-                            Keep As-Is
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Geodetically Verified Alignment Banner */}
-                  {(isSwappedCsv || csvInversion.isVerifiedValid) && (
-                    <div className="mb-4 p-3 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-950 text-xs shadow-xs">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="flex items-start gap-2.5">
-                          <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
-                          <div>
-                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                              <span>Coordinate Ranges Validated (Easting X, Northing Y)</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
-                                {csvInversion.zone || 'Nigerian Survey Grid'}
-                              </span>
-                            </div>
-                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{csvInversion.avgNorthing.toFixed(0)}m</span>). Both values fall within valid Nigerian survey grid ranges — Easting is not required to be smaller than Northing (eastern UTM Zone 31N and much of Zone 32N legitimately exceed it). 2D geometry is rendered on the North 270° Estate Grid.
-                            </p>
-                          </div>
-                        </div>
-                        {isSwappedCsv && (
-                          <button
-                            type="button"
-                            onClick={handleSwapCsvCoordinates}
-                            className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 font-semibold text-xs transition flex items-center gap-1 cursor-pointer self-end sm:self-center"
-                            title="Invert columns back to previous state"
-                          >
-                            <ArrowsLeftRight size={13} weight="bold" /> Undo Swap
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-950">
+                    <strong>X → Easting · Y → Northing · Z → Elevation</strong>
+                    <p className="mt-1">Coordinates retain their imported order. The coordinate system and geographic position have not been verified.</p>
+                  </div>
 
                   {/* Auto-Detect Duplicate Coordinates Warning Banner */}
                   {csvDuplicates.hasDuplicates && (
@@ -1679,12 +1543,12 @@ const PointConverter = () => {
                   <Eye size={20} className="text-blue-600" />
                   <h3 className="text-lg font-bold text-slate-900">2D Geometry & Closed Plot Preview</h3>
                 </div>
-                <span className="text-xs font-medium text-slate-500">True 1:1 Isometric Scale</span>
+                <span className="text-xs font-medium text-slate-500">Equal X/Y scale</span>
               </div>
               <ShapePlotViewer 
                 points={parsedCsvPoints} 
                 title="AutoCAD to DGPS Closed Plot" 
-                onSwapCoordinates={handleSwapCsvCoordinates}
+
               />
             </div>
           </motion.div>
@@ -1751,12 +1615,12 @@ const PointConverter = () => {
                           onChange={(e) => setCsvFormatMode(e.target.value)}
                           className="border border-slate-200 rounded-md p-1.5 text-xs bg-white focus:ring-blue-500 focus:border-blue-500 font-medium"
                         >
-                          <option value="auto">Auto Detect (P-E-N-Z-D / P-D-E-N-Z / P-E-N-Z)</option>
+                          <option value="auto">XYZ / PointID, XYZ (optional code)</option>
                           <option value="P,E,N,Z,D">P, E, N, Z, D (Name, East, North, Elev, Code)</option>
                           <option value="P,D,E,N,Z">P, D, E, N, Z (Name, Code, East, North, Elev)</option>
                           <option value="P,N,E,Z,D">P, N, E, Z, D (Name, North, East, Elev, Code)</option>
                           <option value="P,E,N,Z">P, E, N, Z (Name, East, North, Elev)</option>
-                          <option value="E,N,Z">E, N, Z (East, North, Elev only)</option>
+                          <option value="E,N,Z">X, Y, Z (Easting, Northing, Elevation)</option>
                         </select>
                       </div>
                     </div>
@@ -1844,6 +1708,9 @@ const PointConverter = () => {
                   >
                     <label className="text-xs font-semibold text-slate-600 mb-1.5">
                       Or Paste CSV / Tabular Survey Points:
+                      <span className="block font-normal text-slate-400 mt-0.5">
+                        Import X, Y, Z or PointID, X, Y, Z. X → Easting, Y → Northing, Z → Elevation; column order is preserved.
+                      </span>
                     </label>
                     <textarea
                       className="w-full flex-grow min-h-[220px] p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-xs leading-relaxed resize-none text-slate-800 placeholder-slate-400 bg-white"
@@ -1882,14 +1749,6 @@ const PointConverter = () => {
                           <CheckCircle weight="fill" size={13} /> {parsedScriptPoints.length} Points (Unique)
                         </span>
                       )}
-                      <button
-                        type="button"
-                        onClick={handleSwapScriptCoordinates}
-                        className="px-2.5 py-1 rounded font-semibold text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition flex items-center gap-1 cursor-pointer shadow-2xs"
-                        title="Swap Easting (X) and Northing (Y) coordinates"
-                      >
-                        <ArrowsLeftRight size={13} weight="bold" /> Swap X ⇄ Y
-                      </button>
                       <div className="inline-flex rounded-md border border-slate-200 p-0.5 bg-white text-xs">
                         <button
                           onClick={() => setViewModeScript('text')}
@@ -1909,76 +1768,10 @@ const PointConverter = () => {
                 </div>
 
                 <div className="p-6 flex-grow flex flex-col justify-between">
-                  {/* Auto-Detect Inverted Coordinates Warning Banner */}
-                  {scriptInversion.isInvertedSuspected && !dismissInversionWarningScript && (
-                    <div className="mb-4 p-3.5 rounded-xl bg-orange-50/90 border border-orange-200 text-orange-950 text-xs shadow-xs">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="flex items-start gap-2.5">
-                          <ArrowsLeftRight size={18} className="text-orange-600 shrink-0 mt-0.5" weight="bold" />
-                          <div>
-                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                              <span>Inverted Coordinates Detected (Northing Stored Before Easting)</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-800 font-semibold border border-orange-200">
-                                Total Station N,E Pattern
-                              </span>
-                            </div>
-                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              {scriptInversion.reason}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
-                          <button
-                            type="button"
-                            onClick={handleSwapScriptCoordinates}
-                            className="px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <ArrowsLeftRight size={14} weight="bold" /> Swap X ⇄ Y
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDismissInversionWarningScript(true)}
-                            className="px-2.5 py-1.5 rounded-lg bg-white/90 hover:bg-white text-slate-600 hover:text-slate-800 font-medium text-xs border border-orange-200 transition cursor-pointer"
-                            title="Dismiss warning and keep current coordinate mapping"
-                          >
-                            Keep As-Is
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Geodetically Verified Alignment Banner */}
-                  {(isSwappedScript || scriptInversion.isVerifiedValid) && (
-                    <div className="mb-4 p-3 rounded-xl bg-emerald-50/90 border border-emerald-200 text-emerald-950 text-xs shadow-xs">
-                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                        <div className="flex items-start gap-2.5">
-                          <CheckCircle size={18} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
-                          <div>
-                            <div className="font-bold text-slate-900 flex flex-wrap items-center gap-2">
-                              <span>Coordinate Ranges Validated (Easting X, Northing Y)</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
-                                {scriptInversion.zone || 'Nigerian Survey Grid'}
-                              </span>
-                            </div>
-                            <p className="text-slate-600 mt-1 leading-relaxed text-[11px]">
-                              Easting (X: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgEasting.toFixed(0)}m</span>), Northing (Y: <span className="font-mono font-semibold text-slate-800">~{scriptInversion.avgNorthing.toFixed(0)}m</span>). Both values fall within valid Nigerian survey grid ranges — Easting is not required to be smaller than Northing (eastern UTM Zone 31N and much of Zone 32N legitimately exceed it). 2D geometry is rendered on the North 270° Estate Grid.
-                            </p>
-                          </div>
-                        </div>
-                        {isSwappedScript && (
-                          <button
-                            type="button"
-                            onClick={handleSwapScriptCoordinates}
-                            className="shrink-0 px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 font-semibold text-xs transition flex items-center gap-1 cursor-pointer self-end sm:self-center"
-                            title="Invert columns back to previous state"
-                          >
-                            <ArrowsLeftRight size={13} weight="bold" /> Undo Swap
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
+                  <div className="mb-4 rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs text-sky-950">
+                    <strong>X → Easting · Y → Northing · Z → Elevation</strong>
+                    <p className="mt-1">Coordinates retain their imported order. The coordinate system and geographic position have not been verified.</p>
+                  </div>
 
                   {/* Auto-Detect Duplicate Coordinates Warning Banner */}
                   {scriptDuplicates.hasDuplicates && (
@@ -2169,12 +1962,12 @@ const PointConverter = () => {
                   <Eye size={20} className="text-blue-600" />
                   <h3 className="text-lg font-bold text-slate-900">2D Geometry & Closed Plot Preview</h3>
                 </div>
-                <span className="text-xs font-medium text-slate-500">True 1:1 Isometric Scale</span>
+                <span className="text-xs font-medium text-slate-500">Equal X/Y scale</span>
               </div>
               <ShapePlotViewer 
                 points={parsedScriptPoints} 
                 title="Survey CSV Closed Plot" 
-                onSwapCoordinates={handleSwapScriptCoordinates}
+
               />
             </div>
           </motion.div>

@@ -8,7 +8,6 @@ import {
   Plus,
   Minus,
   ArrowsClockwise,
-  ArrowsLeftRight,
   Warning,
   X,
   CornersOut,
@@ -23,7 +22,6 @@ import {
 } from '@phosphor-icons/react';
 import {
   detectDuplicateCoordinates,
-  detectCoordinateInversion,
   formatSurveyBearing,
   calculateCadastralLine,
   generateDxfFile
@@ -38,7 +36,7 @@ export const AREA_PALETTES = [
   { id: 'teal', stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.18)', dot: '#2dd4bf', halo: 'rgba(20, 184, 166, 0.35)', badge: 'bg-teal-500/20 text-teal-300 border-teal-500/40', labelBg: 'rgba(4, 47, 46, 0.92)' },
 ];
 
-const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordinates }) => {
+const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const viewportRef = useRef(null);
@@ -53,7 +51,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
   const [showGrid, setShowGrid] = useState(true);
   // labelMode: 'hidden' | 'short' | 'name' | 'code'
   const [labelMode, setLabelMode] = useState('hidden');
-  // northRotation: Locked strictly to 270° (Estate Grid West)
+  // Display rotation only; source X/Y/Z values are unchanged.
   const northRotation = 270;
   const [selectedArea, setSelectedArea] = useState('all');
   const [isolateArea, setIsolateArea] = useState(false);
@@ -304,28 +302,8 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
       }
     });
 
-    // 3. Suspected Coordinate Inversion (X / Y Swapped)
-    const inversionCheck = detectCoordinateInversion(points);
-    if (inversionCheck.isInvertedSuspected) {
-      list.push({
-        type: 'inversion',
-        severity: 'warning',
-        title: 'Suspected Inverted Coordinates (X/Y Swapped)',
-        detail: inversionCheck.reason,
-        action: onSwapCoordinates ? 'swap' : null
-      });
-    } else if (inversionCheck.isVerifiedValid) {
-      list.push({
-        type: 'verified',
-        severity: 'info',
-        title: '✓ Coordinates Verified (Easting X, Northing Y)',
-        detail: inversionCheck.reason,
-        action: null
-      });
-    }
-
     return list;
-  }, [points, duplicateInfo, areaGroups, onSwapCoordinates]);
+  }, [points, duplicateInfo, areaGroups]);
 
   // Rotation-Aware Scale & Base Centering:
   // Dynamically computes projected width & height for any rotation angle theta
@@ -498,7 +476,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
     }
   }, [selectedArea, areaGroups, stats, northRotation, projSpanW, projSpanH, baseScale]);
 
-  // Auto-fit camera view whenever points update, coordinates swap, or new file loads
+  // Auto-fit camera view whenever points update, or a new file loads
   useEffect(() => {
     if (points && points.length > 0) {
       handleFitView('all');
@@ -1328,7 +1306,7 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
                       ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25'
                       : 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25'
                   }`}
-                  title={isAllGood ? 'Coordinates and survey geometry verified accurate' : 'Review geometry warnings'}
+                  title={isAllGood ? 'No geometry warnings detected; coordinate system not verified' : 'Review geometry warnings'}
                 >
                   {isAllGood ? (
                     <CheckCircle size={13} weight="fill" className="text-emerald-400" />
@@ -1362,10 +1340,10 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
         {/* 2. TOOLBAR: North Orientation, Labels, Cadastral Ruler, Layers & Actions */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800/60">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            {/* North Orientation Badge (Strictly North 270° Estate Grid) */}
+            {/* Preview rotation is independent of source coordinates. */}
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-950/80 border border-sky-600/50 text-sky-300 text-[11px] font-bold shadow-xs select-none">
-              <span>🧭 North 270°</span>
-              <span className="text-[9px] font-mono font-normal text-sky-400/80 bg-sky-900/60 px-1.5 py-0.5 rounded">Estate Grid</span>
+              <span>🧭 View rotation 270°</span>
+              <span className="text-[9px] font-mono font-normal text-sky-400/80 bg-sky-900/60 px-1.5 py-0.5 rounded">Display only</span>
             </div>
 
             {/* Cadastral Zoom Controls in Toolbar */}
@@ -1516,20 +1494,6 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
 
           {/* Export & Coordinate Actions */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            {onSwapCoordinates && (
-              <button
-                type="button"
-                onClick={onSwapCoordinates}
-                className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg font-semibold text-xs transition border cursor-pointer ${
-                  anomalies.some((a) => a.type === 'inversion')
-                    ? 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40 animate-pulse'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                }`}
-                title="Swap Easting and Northing coordinates (X ⇄ Y)"
-              >
-                <ArrowsLeftRight size={13} weight="bold" /> Swap X ⇄ Y
-              </button>
-            )}
             <button
               type="button"
               onClick={downloadCsvFromPoints}
@@ -1598,15 +1562,6 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry', onSwapCoordi
                       <span className={`font-semibold block ${isVerified ? 'text-emerald-300' : 'text-amber-200'}`}>{anom.title}</span>
                       <span className={`block mt-1 leading-relaxed ${isVerified ? 'text-emerald-200/90' : 'text-slate-400'}`}>{anom.detail}</span>
                     </div>
-                    {anom.action === 'swap' && onSwapCoordinates && (
-                      <button
-                        type="button"
-                        onClick={onSwapCoordinates}
-                        className="mt-2 inline-flex items-center gap-1 self-start px-2.5 py-1 rounded bg-amber-500/25 hover:bg-amber-500/40 text-amber-300 text-[10px] font-bold border border-amber-500/40 cursor-pointer transition"
-                      >
-                        <ArrowsLeftRight size={12} weight="bold" /> Swap Coordinates Now
-                      </button>
-                    )}
                   </div>
                 );
               })}
