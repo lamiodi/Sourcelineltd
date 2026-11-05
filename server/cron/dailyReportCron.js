@@ -2,7 +2,7 @@ const cron = require('node-cron');
 const { Resend } = require('resend');
 const { pool } = require('../db');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const sendDailyReportEmail = async () => {
   try {
@@ -91,6 +91,11 @@ const sendDailyReportEmail = async () => {
 
     const bossEmail = process.env.BOSS_EMAIL; // Boss's email Address from .env
     const senderEmail = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'; // Use your verified domain email
+
+    if (!resend) {
+      console.warn('[CRON] RESEND_API_KEY is not set in environment variables. Skipping email dispatch.');
+      return;
+    }
 
     if (!bossEmail) {
       console.warn('[CRON] BOSS_EMAIL is not set in environment variables. Cannot send email.');

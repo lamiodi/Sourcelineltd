@@ -6,7 +6,7 @@ const verifyToken = require('../middleware/authMiddleware');
 const db = require('../db');
 require('dotenv').config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // POST submit contact form (Public)
 router.post(
@@ -51,7 +51,7 @@ router.post(
     }
 
     // 2. Send Emails via Resend if API key is present
-    if (process.env.RESEND_API_KEY) {
+    if (resend) {
       const sender = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
       const adminEmail = process.env.BOSS_EMAIL || 'sourcelineltd@gmail.com';
 

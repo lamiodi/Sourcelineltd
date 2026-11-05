@@ -11,7 +11,8 @@ const verifyToken = (req, res, next) => {
 
   try {
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const jwtSecret = process.env.JWT_SECRET || 'sourceline_default_jwt_secret_2026';
+    const decoded = jwt.verify(token, jwtSecret);
     req.user = decoded; // Add user payload to request
     next();
   } catch (err) {

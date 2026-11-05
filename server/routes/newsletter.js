@@ -6,7 +6,7 @@ const verifyToken = require('../middleware/authMiddleware');
 const db = require('../db');
 require('dotenv').config();
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Handler for subscribing to newsletter
 const handleSubscribe = async (req, res) => {
@@ -43,7 +43,7 @@ const handleSubscribe = async (req, res) => {
     }
 
     // 3. Send Welcome Email via Resend
-    if (process.env.RESEND_API_KEY) {
+    if (resend) {
       const sender = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
       resend.emails.send({
         from: `Sourceline Insights <${sender}>`,
