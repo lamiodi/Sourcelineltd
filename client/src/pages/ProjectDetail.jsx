@@ -55,7 +55,7 @@ const ProjectDetail = () => {
                 const allRes = await fetch(`${API_URL}/projects`);
                 if (allRes.ok) {
                     const allData = await allRes.json();
-                    setProjectsData(allData);
+                    setProjectsData(Array.isArray(allData) && allData.length > 0 ? allData : staticProjectsData);
                 } else {
                     setProjectsData(staticProjectsData);
                 }

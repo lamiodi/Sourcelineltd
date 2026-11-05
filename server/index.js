@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -59,7 +60,8 @@ app.use(cors({
   },
   credentials: true
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use('/images/uploads', express.static(path.join(__dirname, '../client/public/images/uploads')));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/contact', contactRoutes);

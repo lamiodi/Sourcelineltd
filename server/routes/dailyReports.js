@@ -1,11 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
 const authenticateToken = require('../middleware/authMiddleware');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const { pool } = require('../db');
 
 // Get report for a specific date
 router.get('/:date', authenticateToken, async (req, res) => {

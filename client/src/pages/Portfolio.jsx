@@ -62,7 +62,7 @@ const Portfolio = () => {
         const response = await fetch(`${API_URL}/projects`);
         if (response.ok) {
           const data = await response.json();
-          setProjects(data);
+          setProjects(Array.isArray(data) && data.length > 0 ? data : staticProjectsData);
         } else {
           setProjects(staticProjectsData);
         }

@@ -22,19 +22,10 @@ import {
 } from '@phosphor-icons/react';
 import {
   detectDuplicateCoordinates,
-  formatSurveyBearing,
   calculateCadastralLine,
-  generateDxfFile
+  generateDxfFile,
+  AREA_PALETTES
 } from '../utils/cadastralSurveyUtils';
-
-export const AREA_PALETTES = [
-  { id: 'cyan', stroke: '#38bdf8', fill: 'rgba(56, 189, 248, 0.18)', dot: '#38bdf8', halo: 'rgba(56, 189, 248, 0.35)', badge: 'bg-sky-500/20 text-sky-300 border-sky-500/40', labelBg: 'rgba(8, 47, 73, 0.92)' },
-  { id: 'amber', stroke: '#f59e0b', fill: 'rgba(245, 158, 11, 0.18)', dot: '#fbbf24', halo: 'rgba(245, 158, 11, 0.35)', badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40', labelBg: 'rgba(69, 26, 3, 0.92)' },
-  { id: 'emerald', stroke: '#10b981', fill: 'rgba(16, 185, 129, 0.18)', dot: '#34d399', halo: 'rgba(16, 185, 129, 0.35)', badge: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', labelBg: 'rgba(6, 78, 59, 0.92)' },
-  { id: 'purple', stroke: '#a855f7', fill: 'rgba(168, 85, 247, 0.18)', dot: '#c084fc', halo: 'rgba(168, 85, 247, 0.35)', badge: 'bg-purple-500/20 text-purple-300 border-purple-500/40', labelBg: 'rgba(59, 7, 100, 0.92)' },
-  { id: 'rose', stroke: '#f43f5e', fill: 'rgba(244, 63, 94, 0.18)', dot: '#fb7185', halo: 'rgba(244, 63, 94, 0.35)', badge: 'bg-rose-500/20 text-rose-300 border-rose-500/40', labelBg: 'rgba(76, 5, 25, 0.92)' },
-  { id: 'teal', stroke: '#14b8a6', fill: 'rgba(20, 184, 166, 0.18)', dot: '#2dd4bf', halo: 'rgba(20, 184, 166, 0.35)', badge: 'bg-teal-500/20 text-teal-300 border-teal-500/40', labelBg: 'rgba(4, 47, 46, 0.92)' },
-];
 
 const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
   const canvasRef = useRef(null);
@@ -600,7 +591,9 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
 
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
-    } catch (err) {}
+    } catch {
+      // Ignore pointer capture errors
+    }
 
     setIsDragging(true);
   };
@@ -644,7 +637,9 @@ const ShapePlotViewer = ({ points, title = 'Survey Point Geometry' }) => {
 
     try {
       e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch (err) {}
+    } catch {
+      // Ignore pointer release errors
+    }
 
     // Distinguish Pan from Click using 6px threshold
     if (state.dragDist < 6) {

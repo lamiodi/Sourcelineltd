@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PencilSimple as Edit, Trash as Trash2, Plus, MapPin } from '@phosphor-icons/react';
 import { API_URL } from '../../config';
+import { projects as staticProjectsData } from '../../data';
 
 const ProjectList = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchProjects();
@@ -15,11 +15,14 @@ const ProjectList = () => {
   const fetchProjects = async () => {
     try {
       const response = await fetch(`${API_URL}/projects`);
-      if (!response.ok) throw new Error('Failed to fetch projects');
-      const data = await response.json();
-      setProjects(data);
-    } catch (err) {
-      setError(err.message);
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(Array.isArray(data) && data.length > 0 ? data : staticProjectsData);
+      } else {
+        setProjects(staticProjectsData);
+      }
+    } catch {
+      setProjects(staticProjectsData);
     } finally {
       setLoading(false);
     }
@@ -46,7 +49,6 @@ const ProjectList = () => {
   };
 
   if (loading) return <div>Loading projects...</div>;
-  if (error) return <div className="text-red-500">{error}</div>;
 
   return (
     <div>

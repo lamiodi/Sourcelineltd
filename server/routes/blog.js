@@ -16,14 +16,15 @@ router.get('/', async (req, res) => {
 // GET single blog post by ID or Slug (Public)
 router.get('/:id', async (req, res) => {
   try {
-    // Check if id is UUID or slug
+    // Check if id is UUID, numeric ID, or slug
     const isUUID = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(req.params.id);
+    const isNumericId = /^\d+$/.test(req.params.id);
     
     let query = 'SELECT * FROM blog_posts WHERE ';
     let params = [req.params.id];
     
-    if (isUUID) {
-      query += 'id = $1';
+    if (isUUID || isNumericId) {
+      query += 'id::text = $1';
     } else {
       query += 'slug = $1';
     }

@@ -1,10 +1,6 @@
 const cron = require('node-cron');
 const { Resend } = require('resend');
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const { pool } = require('../db');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -63,13 +59,18 @@ const sendDailyReportEmail = async () => {
             <thead>
               <tr>
                 <th style="background-color: #f8f9ff; color: #000440; text-align: left; padding: 12px; border-bottom: 2px solid #e0e0e0; font-weight: 600;">Worker Name</th>
+                <th style="background-color: #f8f9ff; color: #000440; text-align: left; padding: 12px; border-bottom: 2px solid #e0e0e0; font-weight: 600;">Category / Site</th>
                 <th style="background-color: #f8f9ff; color: #000440; text-align: left; padding: 12px; border-bottom: 2px solid #e0e0e0; font-weight: 600;">Activity Details</th>
               </tr>
             </thead>
             <tbody>
-              ${activities.map((act, index) => `
+              ${activities.map((act) => `
                 <tr>
-                  <td style="padding: 12px; border-bottom: 1px solid #eeeeee; font-weight: 500; vertical-align: top; width: 30%;">${act.worker_name}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid #eeeeee; font-weight: 500; vertical-align: top; width: 28%;">${act.worker_name}</td>
+                  <td style="padding: 12px; border-bottom: 1px solid #eeeeee; color: #000440; vertical-align: top; width: 24%;">
+                    <strong>${act.category || 'Office'}</strong>
+                    ${act.site_gone_to ? `<br/><span style="font-size: 12px; color: #FF6806;">📍 ${act.site_gone_to}</span>` : ''}
+                  </td>
                   <td style="padding: 12px; border-bottom: 1px solid #eeeeee; color: #444; vertical-align: top;">${act.activity}</td>
                 </tr>
               `).join('')}
