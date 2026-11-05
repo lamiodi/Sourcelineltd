@@ -46,13 +46,20 @@ const allowedOrigins = [
   'http://localhost:5173', 
   'http://localhost:3000', 
   'https://www.sourcelineltd.com', 
-  'https://sourcelineltd.com'
+  'https://sourcelineltd.com',
+  'https://www.sourcelinelimited.com.ng',
+  'https://sourcelinelimited.com.ng'
 ];
 app.use(cors({
   origin: function (origin, callback) {
     // allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
+    const isAllowed =
+      allowedOrigins.includes(origin) ||
+      /\.vercel\.app$/.test(origin) ||
+      /\.onrender\.com$/.test(origin) ||
+      /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+    if (!isAllowed) {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
       return callback(new Error(msg), false);
     }
